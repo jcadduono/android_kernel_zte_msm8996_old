@@ -1,3 +1,9 @@
+ifeq ($(CONFIG_BOARD_AILSA_II),y)
+
+dtb-$(CONFIG_ARCH_MSM8996) += zte-msm8996-v3-pmi8996-ailsa_ii.dtb
+
+else
+
 dtb-$(CONFIG_ARCH_MSM8996) += msm8996-v2-pmi8994-cdp.dtb \
 	msm8996-v2-pmi8994-mtp.dtb \
 	msm8996-v2-pmi8994-pmk8001-cdp.dtb \
@@ -56,11 +62,7 @@ dtb-$(CONFIG_ARCH_MSM8996) += msm8996-v2-pmi8994-cdp.dtb \
 	apq8096-v2-liquid.dtb \
 	apq8096-v2-dragonboard.dtb \
 	apq8096-v3-dragonboard.dtb \
-        zte-msm8996-v2-pmi8994-ailsa_ii.dtb \
 	apq8096-v2-auto-dragonboard.dtb \
-        zte-msm8996-v3-pmi8996-ailsa_ii.dtb \
-        zte-msm8996-v3-pmi8996-aviva.dtb \
-        zte-msm8996pro-pmi8996-ailsa_ii.dtb \
 	apq8096-v3-pmi8994-cdp.dtb \
 	apq8096-v3-pmi8994-mtp.dtb \
 	apq8096-v3-pmi8994-pmk8001-cdp.dtb \
@@ -163,6 +165,8 @@ dtb-$(CONFIG_ARCH_MSM8916) += msm8952-qrd-skum.dtb \
 dtb-$(CONFIG_ARCH_MSM8909) += msm8909-pm8916-mtp.dtb \
 	msm8909w-wtp.dtb \
 	apq8009w-wtp.dtb
+
+endif
 
 ifeq ($(CONFIG_ARM64),y)
 always          := $(dtb-y)

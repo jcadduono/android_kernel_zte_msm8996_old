@@ -27,10 +27,11 @@
 
 #ifndef _PKTLOG_AC_H_
 #define _PKTLOG_AC_H_
+#include <pktlog_ac_api.h>
+
 #ifndef REMOVE_PKT_LOG
 
 #include "ol_if_athvar.h"
-#include <pktlog_ac_api.h>
 #include <pktlog_ac_fmt.h>
 #include "osdep.h"
 #include <wmi_unified.h>
@@ -144,10 +145,7 @@ void pktlogmod_exit(void *context);
 #else /* REMOVE_PKT_LOG */
 #define ol_pktlog_attach(_scn)	({ (void)_scn; })
 #define ol_pktlog_detach(_scn)	({ (void)_scn; })
-static inline void pktlog_init(struct ol_softc *scn)
-{
-	return;
-}
+#define pktlog_init(...) do {} while (0)
 static int pktlog_enable(struct ol_softc *scn, int32_t log_state)
 {
 	return 0;
@@ -157,6 +155,10 @@ static int pktlog_setsize(struct ol_softc *scn, int32_t log_state)
 	return 0;
 }
 static int pktlog_disable(struct ol_softc *scn)
+{
+	return 0;
+}
+static int pktlog_send_per_pkt_stats_to_user(void)
 {
 	return 0;
 }
