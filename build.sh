@@ -1,5 +1,5 @@
 #!/bin/bash
-# Android kernel for ZTE msm8996 devices build script by jcadduono
+# TWRP kernel for ZTE msm8996 devices build script by jcadduono
 
 ################### BEFORE STARTING ################
 #
@@ -58,7 +58,7 @@ while [ $# != 0 ]; do
 	shift
 done
 
-[ "$TARGET" ] || TARGET=zte
+[ "$TARGET" ] || TARGET=twrp
 [ "$DEVICE" ] || DEVICE=ailsa_ii
 
 DEFCONFIG=${TARGET}_defconfig
