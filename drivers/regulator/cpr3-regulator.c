@@ -216,9 +216,11 @@
  */
 #define CPR3_REGISTER_WRITE_DELAY_US		200
 
+#ifdef CONFIG_DEBUG_FS
 static DEFINE_MUTEX(cpr3_controller_list_mutex);
 static LIST_HEAD(cpr3_controller_list);
 static struct dentry *cpr3_debugfs_base;
+#endif
 
 /**
  * cpr3_read() - read four bytes from the memory address specified
@@ -3301,6 +3303,7 @@ static int cpr3_regulator_vreg_register(struct cpr3_regulator *vreg)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int debugfs_int_set(void *data, u64 val)
 {
 	*(int *)data = val;
@@ -4321,6 +4324,7 @@ static void cpr3_regulator_debugfs_ctrl_remove(struct cpr3_controller *ctrl)
 		debugfs_remove_recursive(ctrl->debugfs);
 	}
 }
+#endif /* CONFIG_DEBUG_FS */
 
 /**
  * cpr3_regulator_init_ctrl_data() - performs initialization of CPR controller
@@ -4593,10 +4597,12 @@ int cpr3_regulator_register(struct platform_device *pdev,
 		}
 	}
 
+#ifdef CONFIG_DEBUG_FS
 	mutex_lock(&cpr3_controller_list_mutex);
 	cpr3_regulator_debugfs_ctrl_add(ctrl);
 	list_add(&ctrl->list, &cpr3_controller_list);
 	mutex_unlock(&cpr3_controller_list_mutex);
+#endif
 
 	return 0;
 
@@ -4620,10 +4626,12 @@ int cpr3_regulator_unregister(struct cpr3_controller *ctrl)
 {
 	int i, j;
 
+#ifdef CONFIG_DEBUG_FS
 	mutex_lock(&cpr3_controller_list_mutex);
 	list_del(&ctrl->list);
 	cpr3_regulator_debugfs_ctrl_remove(ctrl);
 	mutex_unlock(&cpr3_controller_list_mutex);
+#endif
 
 	cpr3_ctrl_loop_disable(ctrl);
 	cpr3_closed_loop_disable(ctrl);

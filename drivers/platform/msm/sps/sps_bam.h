@@ -218,6 +218,7 @@ struct sps_bam {
 	u32 irq_from_disabled_pipe;
 	u32 event_trigger_failures;
 
+#ifdef CONFIG_IPC_LOGGING
 	void *ipc_log0;
 	void *ipc_log1;
 	void *ipc_log2;
@@ -225,6 +226,7 @@ struct sps_bam {
 	void *ipc_log4;
 
 	u32 ipc_loglevel;
+#endif
 
 	/* Desc cache pointers */
 	u8 *desc_cache_pointers[BAM_MAX_PIPES];

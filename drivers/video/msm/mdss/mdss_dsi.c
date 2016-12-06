@@ -611,6 +611,7 @@ struct buf_data {
 	int sync_flag;
 };
 
+#ifdef CONFIG_DEBUG_FS
 struct mdss_dsi_debugfs_info {
 	struct dentry *root;
 	struct mdss_dsi_ctrl_pdata ctrl_pdata;
@@ -1085,6 +1086,7 @@ static void mdss_dsi_validate_debugfs_info(
 		mdss_dsi_debugfsinfo_to_dsictrl_info(ctrl_pdata);
 	}
 }
+#endif
 
 static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 {
@@ -1281,8 +1283,10 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
+#ifdef CONFIG_DEBUG_FS
 	if (ctrl_pdata->debugfs_info)
 		mdss_dsi_validate_debugfs_info(ctrl_pdata);
+#endif
 
 	cur_power_state = pdata->panel_info.panel_power_state;
 	pr_debug("%s+: ctrl=%p ndx=%d cur_power_state=%d\n", __func__,
@@ -2535,7 +2539,9 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 		rc = mdss_dsi_panel_timing_switch(ctrl_pdata, arg);
 		break;
 	case MDSS_EVENT_FB_REGISTERED:
+#ifdef CONFIG_DEBUG_FS
 		mdss_dsi_debugfs_init(ctrl_pdata);
+#endif
 
 		fbi = (struct fb_info *)arg;
 		if (!fbi || !fbi->dev)
@@ -3581,7 +3587,9 @@ static int mdss_dsi_ctrl_remove(struct platform_device *pdev)
 	msm_dss_iounmap(&ctrl_pdata->mmss_misc_io);
 	msm_dss_iounmap(&ctrl_pdata->phy_io);
 	msm_dss_iounmap(&ctrl_pdata->ctrl_io);
+#ifdef CONFIG_DEBUG_FS
 	mdss_dsi_debugfs_cleanup(ctrl_pdata);
+#endif
 
 	if (ctrl_pdata->workq)
 		destroy_workqueue(ctrl_pdata->workq);

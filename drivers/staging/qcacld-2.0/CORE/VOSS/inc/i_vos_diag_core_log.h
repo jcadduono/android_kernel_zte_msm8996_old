@@ -124,6 +124,11 @@ void vos_log_submit(v_VOID_t *plog_hdr_ptr);
 
 #else /* FEATURE_WLAN_DIAG_SUPPORT */
 
+#define vos_log_set_code(...) do {} while (0)
+#define vos_log_set_length(...) do {} while (0)
+#define vos_log_set_timestamp(...) do {} while (0)
+#define vos_log_submit(...) do {} while (0)
+
 #define WLAN_VOS_DIAG_LOG_ALLOC( payload_ptr, payload_type, log_code )
 #define WLAN_VOS_DIAG_LOG_REPORT( payload_ptr )
 #define WLAN_VOS_DIAG_LOG_FREE( payload_ptr )

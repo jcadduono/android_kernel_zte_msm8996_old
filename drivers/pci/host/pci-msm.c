@@ -43,7 +43,9 @@
 #include <linux/pm_wakeup.h>
 #include <linux/compiler.h>
 #include <soc/qcom/scm.h>
+#ifdef CONFIG_IPC_LOGGING
 #include <linux/ipc_logging.h>
+#endif
 #include <linux/msm_pcie.h>
 
 #ifdef CONFIG_ARCH_MDMCALIFORNIUM
@@ -312,6 +314,8 @@
 #define BDF_OFFSET(bus, devfn) \
 	((bus << 24) | (devfn << 16))
 
+#ifdef CONFIG_IPC_LOGGING
+
 #define PCIE_GEN_DBG(x...) do { \
 	if (msm_pcie_debug_mask) \
 		pr_alert(x); \
@@ -372,6 +376,18 @@
 	pr_err("%s: " fmt, __func__, arg);  \
 	} while (0)
 
+#else
+
+#define PCIE_GEN_DBG(...)
+#define PCIE_DBG(dev, fmt, arg...) pr_debug("%s: " fmt, __func__, arg)
+#define PCIE_DBG2(dev, fmt, arg...) pr_debug("%s: " fmt, __func__, arg)
+#define PCIE_DBG3(dev, fmt, arg...) pr_debug("%s: " fmt, __func__, arg)
+#define PCIE_DUMP(...)
+#define PCIE_DBG_FS(dev, fmt, arg...) pr_debug("%s: " fmt, __func__, arg)
+#define PCIE_INFO(dev, fmt, arg...) pr_info("%s: " fmt, __func__, arg)
+#define PCIE_ERR(dev, fmt, arg...) pr_err("%s: " fmt, __func__, arg)
+
+#endif /* CONFIG_IPC_LOGGING */
 
 enum msm_pcie_res {
 	MSM_PCIE_RES_PARF,
@@ -606,9 +622,11 @@ struct msm_pcie_dev_t {
 	struct msm_pcie_register_event *event_reg;
 	unsigned int			scm_dev_id;
 	bool				 power_on;
+#ifdef CONFIG_IPC_LOGGING
 	void				 *ipc_log;
 	void				*ipc_log_long;
 	void				*ipc_log_dump;
+#endif
 	bool				use_19p2mhz_aux_clk;
 	bool				use_pinctrl;
 	struct pinctrl			*pinctrl;
@@ -4926,13 +4944,13 @@ static irqreturn_t handle_global_irq(int irq, void *data)
 	unsigned long irqsave_flags;
 	u32 status;
 
-	PCIE_DBG2(dev, "RC%d: Global IRQ %d received: 0x%x\n",
-		dev->rc_idx, irq, status);
-
 	spin_lock_irqsave(&dev->global_irq_lock, irqsave_flags);
 
 	status = readl_relaxed(dev->parf + PCIE20_PARF_INT_ALL_STATUS);
 	msm_pcie_write_mask(dev->parf + PCIE20_PARF_INT_ALL_CLEAR, 0, status);
+
+	PCIE_DBG2(dev, "RC%d: Global IRQ %d received: 0x%x\n",
+		dev->rc_idx, irq, status);
 
 	for (i = 0; i <= MSM_PCIE_INT_EVT_MAX; i++) {
 		if (status & BIT(i)) {
@@ -5794,7 +5812,9 @@ static struct platform_driver msm_pcie_driver = {
 int __init pcie_init(void)
 {
 	int ret = 0, i;
+#ifdef CONFIG_IPC_LOGGING
 	char rc_name[MAX_RC_NAME_LEN];
+#endif
 
 	pr_alert("pcie:%s.\n", __func__);
 
@@ -5803,6 +5823,7 @@ int __init pcie_init(void)
 	mutex_init(&com_phy_lock);
 
 	for (i = 0; i < MAX_RC_NUM; i++) {
+#ifdef CONFIG_IPC_LOGGING
 		snprintf(rc_name, MAX_RC_NAME_LEN, "pcie%d-short", i);
 		msm_pcie_dev[i].ipc_log =
 			ipc_log_context_create(PCIE_LOG_PAGES, rc_name, 0);
@@ -5833,6 +5854,7 @@ int __init pcie_init(void)
 			PCIE_DBG(&msm_pcie_dev[i],
 				"PCIe IPC logging %s is enable for RC%d\n",
 				rc_name, i);
+#endif
 		spin_lock_init(&msm_pcie_dev[i].cfg_lock);
 		msm_pcie_dev[i].cfg_access = true;
 		mutex_init(&msm_pcie_dev[i].setup_lock);
@@ -5879,8 +5901,6 @@ module_exit(pcie_exit);
 /* RC do not represent the right class; set it to PCI_CLASS_BRIDGE_PCI */
 static void msm_pcie_fixup_early(struct pci_dev *dev)
 {
-	struct msm_pcie_dev_t *pcie_dev = PCIE_BUS_PRIV_DATA(dev->bus);
-	PCIE_DBG(pcie_dev, "hdr_type %d\n", dev->hdr_type);
 	if (dev->hdr_type == 1)
 		dev->class = (dev->class & 0xff) | (PCI_CLASS_BRIDGE_PCI << 8);
 }
