@@ -45,6 +45,7 @@
 
 #ifdef WLAN_OPEN_SOURCE
 #include <linux/debugfs.h>
+#include "event_defs.h"
 #endif /* WLAN_OPEN_SOURCE */
 #include "wmi_unified_priv.h"
 
