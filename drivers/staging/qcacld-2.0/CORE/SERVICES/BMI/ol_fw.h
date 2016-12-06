@@ -28,6 +28,8 @@
 #ifndef _OL_FW_H_
 #define _OL_FW_H_
 
+#include <pktlog_ac.h>
+
 #ifdef QCA_WIFI_FTM
 #include "vos_types.h"
 #endif
@@ -154,20 +156,15 @@ void ol_target_failure(void *instance, A_STATUS status);
 u_int8_t ol_get_number_of_peers_supported(struct ol_softc *scn);
 
 #ifdef REMOVE_PKT_LOG
-static inline void ol_pktlog_init(void *)
-{
-}
+#define ol_pktlog_init(...) do {} while (0)
 #else
 void ol_pktlog_init(void *);
 #endif
 
-#if defined(HIF_SDIO)
+#ifdef HIF_SDIO
 void ol_target_ready(struct ol_softc *scn, void *cfg_ctx);
 #else
-static inline void ol_target_ready(struct ol_softc *scn, void *cfg_ctx)
-{
-
-}
+#define ol_target_ready(...) do {} while (0)
 #endif
 
 #endif /* _OL_FW_H_ */

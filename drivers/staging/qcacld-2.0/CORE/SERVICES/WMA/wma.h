@@ -415,7 +415,7 @@ struct beacon_tim_ie {
 	u_int8_t dtim_period;
 	u_int8_t tim_bitctl;
 	u_int8_t tim_bitmap[1];
-} __ATTRIB_PACK;
+} POSTPACK;
 
 #define WMA_TIM_SUPPORTED_PVB_LENGTH (HAL_NUM_STA / 8) + 1
 
