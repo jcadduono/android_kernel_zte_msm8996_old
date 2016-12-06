@@ -124,6 +124,7 @@ static char get_cacheflag(const struct kgsl_memdesc *m)
 	return table[kgsl_memdesc_get_cachemode(m)];
 }
 
+long long unsigned int graphic_memory = 0;
 
 static int print_mem_entry(int id, void *ptr, void *data)
 {
@@ -143,6 +144,8 @@ static int print_mem_entry(int id, void *ptr, void *data)
 	flags[7] = '\0';
 
 	kgsl_get_memory_usage(usage, sizeof(usage), m->flags);
+
+	graphic_memory += (long long unsigned int)m->size;
 
 	seq_printf(s, "%pK %pK %16llu %5d %8s %10s %16s %5d",
 			(uint64_t *)(uintptr_t) m->gpuaddr,

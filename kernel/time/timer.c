@@ -684,8 +684,11 @@ static inline void __run_deferrable_timers(void)
 	if (time_after_eq(jiffies, tvec_base_deferrable.timer_jiffies)) {
 		if ((atomic_cmpxchg(&deferrable_pending, 1, 0) &&
 			tick_do_timer_cpu == TICK_DO_TIMER_NONE) ||
-			tick_do_timer_cpu == smp_processor_id())
+			tick_do_timer_cpu == smp_processor_id()) {
+				smp_rmb();
 				__run_timers(&tvec_base_deferrable);
+				smp_wmb();
+			}
 
 	}
 }

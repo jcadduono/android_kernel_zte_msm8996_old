@@ -60,3 +60,12 @@ config PSTORE_RAM
 	  "ramoops.ko".
 
 	  For more information, see Documentation/ramoops.txt.
+
+#
+# Add support for RAM console by ZTE_BOOT
+#
+config ZTE_RAM_CONSOLE
+	bool "ZTE RAM buffer console"
+	depends on PSTORE
+	depends on PSTORE_RAM
+	default n

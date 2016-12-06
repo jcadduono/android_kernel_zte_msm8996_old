@@ -861,6 +861,7 @@ static int msm_compr_send_media_format_block(struct snd_compr_stream *cstream,
 		pr_debug("%s, unsupported format, skip", __func__);
 		break;
 	}
+
 	return ret;
 }
 
@@ -1846,6 +1847,7 @@ static int msm_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 
 		pr_debug("%s: open_write stream_id %d bits_per_sample %d",
 				__func__, stream_id, bits_per_sample);
+
 		rc = q6asm_stream_open_write_v2(prtd->audio_client,
 				prtd->codec, bits_per_sample,
 				stream_id,

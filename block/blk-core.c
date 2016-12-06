@@ -46,6 +46,11 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(block_bio_complete);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_split);
 EXPORT_TRACEPOINT_SYMBOL_GPL(block_unplug);
 
+#ifdef CONFIG_TASK_IO_ACCOUNTING
+EXPORT_TRACEPOINT_SYMBOL(mmc_pid_blk_read_summary);
+EXPORT_TRACEPOINT_SYMBOL(mmc_pid_blk_write_summary);
+#endif
+
 DEFINE_IDA(blk_queue_ida);
 
 /*
