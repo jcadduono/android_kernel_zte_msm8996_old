@@ -44,15 +44,11 @@
 
 #ifdef WIN32
 #pragma pack(push, pktlog_fmt, 1)
-#define __ATTRIB_PACK
-#elif defined(__EFI__)
-#define __ATTRIB_PACK
-#else
-#ifndef __ATTRIB_PACK
-#define __ATTRIB_PACK __attribute__ ((packed))
 #endif
-#endif
+
 #include <a_types.h>
+#include <a_osapi.h>
+
 /*
  * Each packet log entry consists of the following fixed length header
  * followed by variable length log information determined by log_type
@@ -64,7 +60,7 @@ struct ath_pktlog_hdr {
     u_int16_t log_type;
     u_int16_t size;
     u_int32_t timestamp;
-}__ATTRIB_PACK;
+} POSTPACK;
 
 #define ATH_PKTLOG_HDR_FLAGS_MASK 0xffff
 #define ATH_PKTLOG_HDR_FLAGS_SHIFT 0
@@ -185,7 +181,7 @@ typedef struct {
      *  Reduces computation in the driver code
      */
     A_UINT16 id[MAX_PKT_INFO_MSDU_ID];
-}__ATTRIB_PACK msdu_id_info_t;
+} POSTPACK msdu_id_info_t;
 #define MSDU_ID_INFO_NUM_MSDU_OFFSET 0 /* char offset */
 #define MSDU_ID_INFO_BOUND_BM_OFFSET 4
 #define MSDU_ID_INFO_ID_OFFSET  \
@@ -201,13 +197,13 @@ struct ath_pktlog_txctl {
         //u_int32_t *proto_hdr;   /* protocol header (variable length!) */
         //u_int32_t *misc; /* Can be used for HT specific or other misc info */
     } priv;
-} __ATTRIB_PACK;
+} POSTPACK;
 
 struct ath_pktlog_tx_status {
     struct ath_pktlog_hdr pl_hdr;
     void *ds_status;
     int32_t misc[0];        /* Can be used for HT specific or other misc info */
-}__ATTRIB_PACK;
+} POSTPACK;
 
 struct ath_pktlog_msdu_info {
     struct ath_pktlog_hdr pl_hdr;
@@ -230,22 +226,22 @@ struct ath_pktlog_msdu_info {
     } priv;
     size_t priv_size;
 
-}__ATTRIB_PACK;
+} POSTPACK;
 
 struct ath_pktlog_rx_info {
     struct ath_pktlog_hdr pl_hdr;
     void *rx_desc;
-}__ATTRIB_PACK;
+} POSTPACK;
 
 struct ath_pktlog_rc_find {
     struct ath_pktlog_hdr pl_hdr;
     void *rcFind;
-}__ATTRIB_PACK;
+} POSTPACK;
 
 struct ath_pktlog_rc_update {
     struct ath_pktlog_hdr pl_hdr;
     void *txRateCtrl;/* rate control state proper */
-}__ATTRIB_PACK;
+} POSTPACK;
 
 #define PKTLOG_MAX_RXSTATUS_WORDS 11
 
@@ -263,7 +259,7 @@ struct ath_pktlog_ani {
     u_int32_t ofdmPhyErrCount;
     u_int32_t cckPhyErrCount;
     int32_t misc[0];         /* Can be used for HT specific or other misc info */
-} __ATTRIB_PACK;
+} POSTPACK;
 
 
 struct ath_pktlog_rcfind {
@@ -281,7 +277,7 @@ struct ath_pktlog_rcfind {
     u_int8_t rcRateMax;
     u_int8_t ac;
     int32_t misc[0];         /* Can be used for HT specific or other misc info */
-} __ATTRIB_PACK;
+} POSTPACK;
 
 
 struct ath_pktlog_rcupdate {
@@ -311,14 +307,7 @@ struct ath_pktlog_rcupdate {
     u_int8_t lastRate; /* rate control and aggregation variables ( part of ATH_SUPPORT_VOWEXT ) */
     int32_t misc[0];         /* Can be used for HT specific or other misc info */
     /* TBD: Add any new parameters required */
-} __ATTRIB_PACK;
-
-#ifdef WIN32
-#pragma pack(pop, pktlog_fmt)
-#endif
-#ifdef __ATTRIB_PACK
-#undef __ATTRIB_PACK
-#endif   /* __ATTRIB_PACK */
+} POSTPACK;
 
 /*
  * The following header is included in the beginning of the file,
