@@ -32,6 +32,13 @@
 
 #ifndef _PKTLOG_AC_API_
 #define _PKTLOG_AC_API_
+/**
+ * @typedef ol_softc_handle
+ * @brief opaque handle for ol_softc
+ */
+struct ol_softc;
+typedef struct ol_softc* ol_softc_handle;
+
 #ifndef REMOVE_PKT_LOG
 
 /**
@@ -40,13 +47,6 @@
  */
 struct ol_pktlog_dev_t;
 typedef struct ol_pktlog_dev_t* ol_pktlog_dev_handle;
-
-/**
- * @typedef ol_softc_handle
- * @brief opaque handle for ol_softc
- */
-struct ol_softc;
-typedef struct ol_softc* ol_softc_handle;
 
 /**
  * @typedef net_device_handle

@@ -529,8 +529,11 @@ struct mdss_dsi_ctrl_pdata {
 	void *mdp_clk_handle;
 	int m_dsi_vote_cnt;
 	int m_mdp_vote_cnt;
+
+#ifdef CONFIG_DEBUG_FS
 	/* debugfs structure */
 	struct mdss_dsi_debugfs_info *debugfs_info;
+#endif
 
 	struct dsi_err_container err_cont;
 

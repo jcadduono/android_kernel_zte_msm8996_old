@@ -1214,13 +1214,9 @@ static inline void ufshcd_vops_remove_debugfs(struct ufs_hba *hba)
 		hba->var->vops->remove_debugfs(hba);
 }
 #else
-static inline void ufshcd_vops_add_debugfs(struct ufs_hba *hba, struct dentry *)
-{
-}
-
-static inline void ufshcd_vops_remove_debugfs(struct ufs_hba *hba)
-{
-}
+static inline void ufshcd_vops_add_debugfs(struct ufs_hba *hba,
+						struct dentry *root) { }
+static inline void ufshcd_vops_remove_debugfs(struct ufs_hba *hba) { }
 #endif
 
 static inline int ufshcd_vops_crypto_req_setup(struct ufs_hba *hba,
