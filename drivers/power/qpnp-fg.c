@@ -611,6 +611,11 @@ struct fg_chip {
 	u8			last_beat_count;
 };
 
+static const char *default_batt_type	= "Unknown Battery";
+static const char *loading_batt_type	= "Loading Battery Data";
+static const char *missing_batt_type	= "Disconnected Battery";
+
+#ifdef CONFIG_DEBUG_FS
 /* FG_MEMIF DEBUGFS structures */
 #define ADDR_LEN	4	/* 3 byte address + 1 space character */
 #define CHARS_PER_ITEM	3	/* Format is 'XX ' */
@@ -620,9 +625,6 @@ struct fg_chip {
 
 static const char *DFS_ROOT_NAME	= "fg_memif";
 static const mode_t DFS_MODE = S_IRUSR | S_IWUSR;
-static const char *default_batt_type	= "Unknown Battery";
-static const char *loading_batt_type	= "Loading Battery Data";
-static const char *missing_batt_type	= "Disconnected Battery";
 
 /* Log buffer */
 struct fg_log_buffer {
@@ -666,6 +668,7 @@ static struct fg_dbgfs dbgfs_data = {
 "\n",
 	},
 };
+#endif
 
 static const struct of_device_id fg_match_table[] = {
 	{	.compatible = QPNP_FG_DEV_NAME, },
@@ -6852,6 +6855,7 @@ static int fg_remove(struct spmi_device *spmi)
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static int fg_memif_data_open(struct inode *inode, struct file *file)
 {
 	struct fg_log_buffer *log;
@@ -7260,6 +7264,7 @@ err_remove_fs:
 	debugfs_remove_recursive(root);
 	return -ENOMEM;
 }
+#endif
 
 #define EXTERNAL_SENSE_OFFSET_REG	0x41C
 #define EXT_OFFSET_TRIM_REG		0xF8
@@ -8266,6 +8271,7 @@ static int fg_probe(struct spmi_device *spmi)
 	 */
 	chip->batt_psy_name = "battery";
 
+#ifdef CONFIG_DEBUG_FS
 	if (chip->mem_base) {
 		rc = fg_dfs_create(chip);
 		if (rc < 0) {
@@ -8273,6 +8279,7 @@ static int fg_probe(struct spmi_device *spmi)
 			goto power_supply_unregister;
 		}
 	}
+#endif
 
 	/* Fake temperature till the actual temperature is read */
 	chip->last_good_temp = 250;
@@ -8285,8 +8292,10 @@ static int fg_probe(struct spmi_device *spmi)
 
 	return rc;
 
+#ifdef CONFIG_DEBUG_FS
 power_supply_unregister:
 	power_supply_unregister(&chip->bms_psy);
+#endif
 cancel_work:
 	fg_cancel_all_works(chip);
 of_init_fail:

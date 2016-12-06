@@ -1615,6 +1615,7 @@ static void mdss_fb_stop_disp_thread(struct msm_fb_data_type *mfd)
 	mfd->disp_thread = NULL;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static void mdss_panel_validate_debugfs_info(struct msm_fb_data_type *mfd)
 {
 	struct mdss_panel_info *panel_info = mfd->panel_info;
@@ -1642,6 +1643,7 @@ static void mdss_panel_validate_debugfs_info(struct msm_fb_data_type *mfd)
 			pr_err("Failed to send panel event CHECK_PARAMS\n");
 	}
 }
+#endif
 
 static int mdss_fb_blank_blank(struct msm_fb_data_type *mfd,
 	int req_power_state)
@@ -1709,8 +1711,10 @@ static int mdss_fb_blank_unblank(struct msm_fb_data_type *mfd)
 	if (!mfd)
 		return -EINVAL;
 
+#ifdef CONFIG_DEBUG_FS
 	if (mfd->panel_info->debugfs_info)
 		mdss_panel_validate_debugfs_info(mfd);
+#endif
 
 	/* Start Display thread */
 	if (mfd->disp_thread == NULL) {
@@ -2547,7 +2551,9 @@ static int mdss_fb_register(struct msm_fb_data_type *mfd)
 
 	snprintf(panel_name, ARRAY_SIZE(panel_name), "mdss_panel_fb%d",
 		mfd->index);
+#ifdef CONFIG_DEBUG_FS
 	mdss_panel_debugfs_init(panel_info, panel_name);
+#endif
 	pr_info("FrameBuffer[%d] %dx%d registered successfully!\n", mfd->index,
 					fbi->var.xres, fbi->var.yres);
 

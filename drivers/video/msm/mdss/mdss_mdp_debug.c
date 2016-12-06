@@ -971,6 +971,7 @@ void mdss_mdp_hw_rev_debug_caps_init(struct mdss_data_type *mdata)
 	}
 }
 
+#ifdef CONFIG_DEBUG_FS
 void mdss_mdp_debug_mid(u32 mid)
 {
 	struct mdss_data_type *mdata = mdss_mdp_get_mdata();
@@ -1002,6 +1003,7 @@ void mdss_mdp_debug_mid(u32 mid)
 		}
 	}
 }
+#endif
 
 static void __print_time(char *buf, u32 size, u64 ts)
 {
