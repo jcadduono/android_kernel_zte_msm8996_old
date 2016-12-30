@@ -35,6 +35,8 @@
 
 #include <linux/phy/phy.h>
 
+#include <linux/switch.h> //for online offline event, xingbl_20140704
+
 #define DWC3_MSG_MAX	500
 
 /* Global constants */
@@ -750,6 +752,7 @@ struct dwc3_scratchpad_array {
 #define DWC3_CONTROLLER_SET_CURRENT_DRAW_EVENT		10
 #define DWC3_CONTROLLER_RESTART_USB_SESSION		11
 #define DWC3_CONTROLLER_NOTIFY_DISABLE_UPDXFER		12
+#define DWC3_CONTROLLER_GADGET_EXTRA_EVENT		13
 
 #define MAX_INTR_STATS					10
 /**
@@ -834,6 +837,7 @@ struct dwc3_scratchpad_array {
  * @wait_linkstate: waitqueue for waiting LINK to move into required state
  * @vbus_draw: current to be drawn from USB
  * @dwc_ipc_log_ctxt: dwc3 ipa log context
+ * @extra_event: extra event from gadget to dwc3
  */
 struct dwc3 {
 	struct usb_ctrlrequest	*ctrl_req;
@@ -866,6 +870,11 @@ struct dwc3 {
 
 	struct phy		*usb2_generic_phy;
 	struct phy		*usb3_generic_phy;
+
+	//for online offline event, xingbl_20140704
+	struct switch_dev sdev;
+	bool start_adbd;
+	//end
 
 	void __iomem		*regs;
 	size_t			regs_size;
@@ -970,6 +979,7 @@ struct dwc3 {
 	int			tx_fifo_size;
 	bool			b_suspend;
 	unsigned		vbus_draw;
+	unsigned		extra_event; /* for notify otg from gadget, 6/8 */
 
 	/* IRQ timing statistics */
 	int			irq;
