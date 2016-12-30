@@ -1,0 +1,7 @@
+#
+# Fingerprint device configuration
+#
+
+source "drivers/input/fingerprint/synaptics_vfs/Kconfig"
+
+source "drivers/input/fingerprint/goodix/Kconfig"
