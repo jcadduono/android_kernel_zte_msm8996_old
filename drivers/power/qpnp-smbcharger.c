@@ -8465,6 +8465,31 @@ static void smbchg_shutdown(struct spmi_device *spmi)
 	pr_smb(PR_STATUS, "wrote power off configurations\n");
 }
 
+#ifdef CONFIG_USB_HD3SS3220
+void interfere_id_irq_from_usb(int enable)
+{
+    bool otg_present;
+
+    if (zte_chip == NULL)
+        return;
+
+    otg_present = is_otg_present(zte_chip);
+    if (otg_present)
+        return;
+
+    pr_info("%s id irq\n", enable?"enable":"disable");
+    if (enable) {
+        enable_irq(zte_chip->usbid_change_irq);
+        enable_irq_wake(zte_chip->usbid_change_irq);
+    }
+    else {
+        disable_irq_wake(zte_chip->usbid_change_irq);
+        disable_irq(zte_chip->usbid_change_irq);
+    }
+}
+EXPORT_SYMBOL_GPL(interfere_id_irq_from_usb);
+#endif
+
 static const struct dev_pm_ops smbchg_pm_ops = {
 };
 
