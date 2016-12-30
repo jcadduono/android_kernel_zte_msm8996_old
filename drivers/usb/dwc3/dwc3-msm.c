@@ -53,7 +53,7 @@
 #include "xhci.h"
 
 #define DWC3_IDEV_CHG_MAX 1500
-#define DWC3_HVDCP_CHG_MAX 1800
+#define DWC3_HVDCP_CHG_MAX 1500   //1800 zte_PM protect
 
 /* time out to wait for USB cable status notification (in ms)*/
 #define SM_INIT_TIMEOUT 30000
@@ -241,6 +241,10 @@ struct dwc3_msm {
 	atomic_t                in_p3;
 	unsigned int		lpm_to_suspend_delay;
 	bool			init;
+	/* wall charger in which D+/D- is disconnected
+		would be recognized as usb cable, 1/5 */
+	struct delayed_work	invalid_chg_work;
+	/* end */
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -260,6 +264,48 @@ struct dwc3_msm {
 
 static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc);
 static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA);
+
+/* In the rare case that phy suspend sequence is aborted
+ * due to Non-P3 state when DCP is connected, try additional
+ * suspend when DCP is connected even in the case
+ * otg_state equals OTG_STATE_B_IDLE, 1/3.
+ */
+static int try_additional_pm_relax = 0;
+
+/* wall charger in which D+/D- is disconnected
+	would be recognized as an usb cable, 2/5 */
+static int skip_invalid_chg_work = 0;
+#define DWC3_IDEV_CHG_INVALID	501
+
+static void dwc3_invalid_chg_work(struct work_struct *w)
+{
+	struct dwc3_msm *mdwc = container_of(w, struct dwc3_msm, invalid_chg_work.work);
+	if (skip_invalid_chg_work){
+		dev_dbg(mdwc->dev, "do skip_invalid_chg_work\n");
+		skip_invalid_chg_work = 0;
+		return;
+	}
+
+	dev_info(mdwc->dev, "usb schedule %s\n", __func__);
+	dwc3_msm_gadget_vbus_draw(mdwc, DWC3_IDEV_CHG_INVALID);
+	return;
+}
+/*end*/
+
+/*
+ * for notify otg from gadget, 8/8
+ * event 1:  skip invalid_chg work, as usb has already been configured
+ * event 2:  ...
+ */
+static int dwc3_extra_event_from_gadget(struct dwc3_msm *mdwc, unsigned event)
+{
+	if (event == 1){
+		dev_dbg(mdwc->dev, "prepare skip_invalid_chg_work\n");
+		skip_invalid_chg_work = 1;
+	}
+	return 0;
+}
+/* end */
 
 /**
  *
@@ -1708,6 +1754,12 @@ static void dwc3_msm_notify_event(struct dwc3 *dwc, unsigned event)
 		dev_dbg(mdwc->dev, "DWC3_CONTROLLER_RESTART_USB_SESSION received\n");
 		dwc3_restart_usb_work(&mdwc->restart_usb_work);
 		break;
+	/* for notify otg from gadget, 7/8 */
+	case DWC3_CONTROLLER_GADGET_EXTRA_EVENT:
+		dev_dbg(mdwc->dev, "DWC3_CONTROLLER_GADGET_EXTRA_EVENT received\n");
+		dwc3_extra_event_from_gadget(mdwc, dwc->extra_event);
+		break;
+	/* end */
 	default:
 		dev_dbg(mdwc->dev, "unknown dwc3 event\n");
 		break;
@@ -1890,8 +1942,21 @@ static int dwc3_msm_suspend(struct dwc3_msm *mdwc)
 	}
 
 	ret = dwc3_msm_prepare_suspend(mdwc);
-	if (ret)
+	if (ret) {
+		/* In the rare case that phy suspend sequence is aborted
+		 * due to Non-P3 state when DCP is connected, try additional
+		 * suspend when DCP is connected even in the case
+		 * otg_state equals OTG_STATE_B_IDLE, 2/3.
+		 */
+		if (mdwc->chg_type == DWC3_DCP_CHARGER ||
+			mdwc->chg_type == DWC3_PROPRIETARY_CHARGER) {
+			pr_info("%s(): Try pm_relax again.\n", __func__);
+			try_additional_pm_relax = 1;
+		}
 		return ret;
+	} else {
+		try_additional_pm_relax = 0;
+	}
 
 	/* Initialize variables here */
 	can_suspend_ssphy = !(mdwc->in_host_mode &&
@@ -2345,6 +2410,7 @@ static int dwc3_msm_power_set_property_usb(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		dev_dbg(mdwc->dev, "%s: notify xceiv event with val:%d\n",
 							__func__, val->intval);
+
 		/*
 		 * Now otg_sm_work() state machine waits for USB cable status.
 		 * Hence here it makes sure that schedule resume work only if
@@ -2617,6 +2683,10 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	INIT_WORK(&mdwc->bus_vote_w, dwc3_msm_bus_vote_w);
 	init_completion(&mdwc->dwc3_xcvr_vbus_init);
 	INIT_DELAYED_WORK(&mdwc->sm_work, dwc3_otg_sm_work);
+	/* wall charger in which D+/D- is disconnected
+		would be recognized as usb cable, 5/5 */
+	INIT_DELAYED_WORK(&mdwc->invalid_chg_work, dwc3_invalid_chg_work);
+	/* end */
 
 	mdwc->dwc3_wq = alloc_ordered_workqueue("dwc3_wq", 0);
 	if (!mdwc->dwc3_wq) {
@@ -3223,7 +3293,7 @@ static int dwc3_msm_gadget_vbus_draw(struct dwc3_msm *mdwc, unsigned mA)
 	if (mdwc->charging_disabled)
 		return 0;
 
-	if (mdwc->chg_type != DWC3_INVALID_CHARGER) {
+	if ((mdwc->chg_type != DWC3_INVALID_CHARGER) && (mA != DWC3_IDEV_CHG_INVALID)) {
 		dev_dbg(mdwc->dev,
 			"SKIP setting power supply type again,chg_type = %d\n",
 			mdwc->chg_type);
@@ -3481,6 +3551,17 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				dev_dbg(mdwc->dev, "lpm, DCP charger\n");
 				dwc3_msm_gadget_vbus_draw(mdwc,
 						dcp_max_current);
+				/* In the rare case that phy suspend sequence is aborted
+				 * due to Non-P3 state when DCP is connected, try additional
+				 * suspend when DCP is connected even in the case
+				 * otg_state equals OTG_STATE_B_IDLE, 3/3.
+				 */
+				if (try_additional_pm_relax) {
+					dev_info(mdwc->dev, "Execute pm_relax again\n");
+					try_additional_pm_relax = 0;
+					atomic_set(&dwc->in_lpm, 1);
+					pm_relax(mdwc->dev);
+				}
 				break;
 			case DWC3_CDP_CHARGER:
 				dwc3_msm_gadget_vbus_draw(mdwc,
@@ -3500,12 +3581,22 @@ static void dwc3_otg_sm_work(struct work_struct *w)
 				dwc3_otg_start_peripheral(mdwc, 1);
 				mdwc->otg_state = OTG_STATE_B_PERIPHERAL;
 				work = 1;
+				/* wall charger in which D+/D- is disconnected
+				would be recognized as an usb cable, 4/5 */
+				schedule_delayed_work(&mdwc->invalid_chg_work, 5*HZ);
+				/* end */
 				break;
 			/* fall through */
 			default:
 				break;
 			}
 		} else {
+			/* wall charger in which D+/D- is disconnected
+				would be recognized as an usb cable, 5/5 */
+			dev_dbg(mdwc->dev,  "cancel invalid_chg_work\n");
+			cancel_delayed_work_sync(&mdwc->invalid_chg_work);
+			skip_invalid_chg_work = 0;
+			/* end */
 			dwc3_msm_gadget_vbus_draw(mdwc, 0);
 			dev_dbg(mdwc->dev, "No device, allowing suspend\n");
 		}
