@@ -562,6 +562,89 @@ static struct socinfo_v0_1 dummy_socinfo = {
 	.version = 1,
 };
 
+#ifdef CONFIG_ZTE_BOOT_MODE
+static int boot_mode = ENUM_BOOT_MODE_NORMAL;
+static int pv_flag = 0;
+static int fp_hw = -1;
+
+static int __init boot_mode_init(char *mode)
+{
+	if (!strcmp(mode, ANDROID_BOOT_MODE_FTM))
+		boot_mode = ENUM_BOOT_MODE_FTM;
+	else if (!strcmp(mode, ANDROID_BOOT_MODE_CHARGER))
+		boot_mode = ENUM_BOOT_MODE_CHARGER;
+	else if (!strcmp(mode, ANDROID_BOOT_MODE_RECOVERY))
+		boot_mode = ENUM_BOOT_MODE_RECOVERY;
+	else if (!strcmp(mode, ANDROID_BOOT_MODE_FFBM))
+		boot_mode = ENUM_BOOT_MODE_FFBM;
+
+	pr_info("[ZTE] boot_mode: %s = %d\n", mode, boot_mode);
+
+	return 0;
+}
+__setup("androidboot.mode=", boot_mode_init);
+
+static int __init pv_flag_init(char *ver)
+{
+	if (!strcmp(ver, "1"))
+		pv_flag = 1;
+
+	pr_info("[ZTE] pv_flag: %s = %d\n", ver, pv_flag);
+
+	return 0;
+}
+__setup("androidboot.pv-version=", pv_flag_init);
+
+static int __init fp_hw_init(char *name)
+{
+	if (!strcmp(name, "goodix"))
+		fp_hw = 0;
+	else if (!strcmp(name, "synafp"))
+		fp_hw = 1;
+
+	pr_info("[ZTE] fp_hw: %s = %d\n", name, fp_hw);
+
+	return 0;
+}
+__setup("androidboot.fingerprinthw=", fp_hw_init);
+
+int socinfo_get_ftm_flag(void)
+{
+	return boot_mode == ENUM_BOOT_MODE_FTM;
+}
+EXPORT_SYMBOL(socinfo_get_ftm_flag);
+
+int socinfo_get_charger_flag(void)
+{
+	return boot_mode == ENUM_BOOT_MODE_CHARGER;
+}
+EXPORT_SYMBOL(socinfo_get_charger_flag);
+
+int socinfo_get_recovery_flag(void)
+{
+	return boot_mode == ENUM_BOOT_MODE_RECOVERY;
+}
+EXPORT_SYMBOL(socinfo_get_recovery_flag);
+
+int socinfo_get_ffbm_flag(void)
+{
+	return boot_mode == ENUM_BOOT_MODE_FFBM;
+}
+EXPORT_SYMBOL(socinfo_get_ffbm_flag);
+
+int socinfo_get_pv_flag(void)
+{
+	return pv_flag;
+}
+EXPORT_SYMBOL(socinfo_get_pv_flag);
+
+int socinfo_get_fp_hw(void)
+{
+	return fp_hw;
+}
+EXPORT_SYMBOL(socinfo_get_fp_hw);
+#endif
+
 uint32_t socinfo_get_id(void)
 {
 	return (socinfo) ? socinfo->v0_1.id : 0;

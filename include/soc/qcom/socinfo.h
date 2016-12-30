@@ -235,4 +235,35 @@ enum pmic_model socinfo_get_pmic_model(void);
 uint32_t socinfo_get_pmic_die_revision(void);
 int __init socinfo_init(void) __must_check;
 
+#ifdef CONFIG_ZTE_BOOT_MODE
+
+#define ANDROID_BOOT_MODE_NORMAL	"normal"
+#define ANDROID_BOOT_MODE_FTM		"ftm"
+#define ANDROID_BOOT_MODE_CHARGER	"charger"
+#define ANDROID_BOOT_MODE_RECOVERY	"recovery"
+#define ANDROID_BOOT_MODE_FFBM		"ffbm"
+
+#define MAGIC_NUM_FTM_MODE		0x6D6D5446 /*FTMM*/
+#define MAGIC_NUM_NON_FTM_MODE		0x4D54464E /*NFTM*/
+
+enum {
+	ENUM_BOOT_MODE_NORMAL = 0,
+	ENUM_BOOT_MODE_FTM,
+	ENUM_BOOT_MODE_RTC_ALARM,
+	ENUM_BOOT_MODE_CHARGER,
+	ENUM_BOOT_MODE_RECOVERY,
+	ENUM_BOOT_MODE_FFBM,
+	ENUM_BOOT_MODE_UNKNOWN,
+	ENUM_BOOT_MODE_MAX
+};
+
+int socinfo_get_ftm_flag(void);
+int socinfo_get_charger_flag(void);
+int socinfo_get_recovery_flag(void);
+int socinfo_get_ffbm_flag(void);
+int socinfo_get_pv_flag(void);
+int socinfo_get_fp_hw(void);
+
+#endif
+
 #endif
