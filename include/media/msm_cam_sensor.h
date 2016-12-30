@@ -338,6 +338,11 @@ struct msm_camera_sensor_slave_info32 {
 	struct msm_sensor_power_setting_array32 power_setting_array;
 	uint8_t  is_init_params_valid;
 	struct msm_sensor_init_params sensor_init_params;
+/*
+ * by ZTE_YCM_20140909 yi.changming 400006
+ */
+	uint16_t backup_slave_addr;
+// --->400006
 	enum msm_sensor_output_format_t output_format;
 };
 
@@ -414,6 +419,7 @@ enum msm_sensor_cfg_type_t {
 	CFG_SLAVE_WRITE_I2C_ARRAY,
 	CFG_WRITE_I2C_SEQ_ARRAY,
 	CFG_POWER_UP,
+	CFG_POWER_RESET, /* ZTE addition */
 	CFG_POWER_DOWN,
 	CFG_SET_STOP_STREAM_SETTING,
 	CFG_GET_SENSOR_INFO,
@@ -453,15 +459,18 @@ enum msm_actuator_cfg_type_t {
 
 enum msm_ois_cfg_type_t {
 	CFG_OIS_INIT,
+	CFG_OIS_DEINIT, /* ZTE addition */
 	CFG_OIS_POWERDOWN,
 	CFG_OIS_POWERUP,
 	CFG_OIS_CONTROL,
+	CFG_OIS_READ, /* ZTE addition */
 	CFG_OIS_I2C_WRITE_SEQ_TABLE,
 };
 
 enum msm_ois_i2c_operation {
 	MSM_OIS_WRITE = 0,
 	MSM_OIS_POLL,
+	MSM_OIS_READ, /* ZTE addition */
 };
 
 struct reg_settings_ois_t {

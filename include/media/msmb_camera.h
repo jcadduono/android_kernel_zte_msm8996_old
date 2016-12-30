@@ -23,6 +23,10 @@
 #define MSM_CAM_V4L2_IOCTL_NOTIFY_DEBUG \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 34, struct msm_v4l2_event_data)
 
+/* ZTE addition */
+#define MSM_CAM_V4L2_IOCTL_NOTIFY_RECOVERY \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 40, struct msm_v4l2_event_data)
+
 #ifdef CONFIG_COMPAT
 #define MSM_CAM_V4L2_IOCTL_NOTIFY32 \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 30, struct v4l2_event32)
@@ -38,6 +42,10 @@
 
 #define MSM_CAM_V4L2_IOCTL_NOTIFY_DEBUG32 \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 34, struct v4l2_event32)
+
+/* ZTE addition */
+#define MSM_CAM_V4L2_IOCTL_NOTIFY_RECOVERY32 \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 40, struct v4l2_event32)
 
 #endif
 
@@ -116,6 +124,12 @@
 #define MSM_CAMERA_PRIV_STREAM_INFO_SYNC \
 	(V4L2_CID_PRIVATE_BASE + 13)
 #define MSM_CAMERA_PRIV_G_SESSION_ID (V4L2_CID_PRIVATE_BASE + 14)
+
+/* ZTE addition */
+#define MSM_CAMERA_PRIV_RECOVERY_SENSOR (V4L2_CID_PRIVATE_BASE + 16)
+/* ZTE addition */
+#define MSM_CAMERA_PRIV_RECOVERY        (V4L2_CID_PRIVATE_BASE + 17)
+
 #define MSM_CAMERA_PRIV_CMD_MAX  20
 
 /* data.status - success */
