@@ -19,6 +19,14 @@
 #define MSM_CAM_V4L2_IOCTL_NOTIFY_DEBUG32 \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 34, struct v4l2_event32)
 
+/*
+ * recovery camera preview after camera sensor is died
+ * by ZTE_YCM_20160530 yi.changming 400267
+ */
+#define MSM_CAM_V4L2_IOCTL_NOTIFY_RECOVERY32 \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 40, struct v4l2_event32)
+// <---400267
+
 #endif
 
 #endif

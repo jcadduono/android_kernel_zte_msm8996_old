@@ -40,6 +40,11 @@ struct msm_camera_sensor_slave_info32 {
 	struct msm_sensor_power_setting_array32 power_setting_array;
 	uint8_t  is_init_params_valid;
 	struct msm_sensor_init_params sensor_init_params;
+/*
+ * by ZTE_YCM_20140909 yi.changming 400006
+ */
+	uint16_t backup_slave_addr;
+// --->400006
 	enum msm_sensor_output_format_t output_format;
 };
 
@@ -146,8 +151,13 @@ struct msm_actuator_params_t32 {
 	uint16_t init_setting_size;
 	uint32_t i2c_addr;
 	enum i2c_freq_mode_t i2c_freq_mode;
+#ifdef CONFIG_ZTE_ANDROID_M_COMPAT
+	enum msm_actuator_addr_type i2c_addr_type;
+	enum msm_actuator_data_type i2c_data_type;
+#else
 	enum msm_camera_i2c_reg_addr_type i2c_addr_type;
 	enum msm_camera_i2c_data_type i2c_data_type;
+#endif
 	compat_uptr_t reg_tbl_params;
 	compat_uptr_t init_settings;
 	struct park_lens_data_t park_lens;

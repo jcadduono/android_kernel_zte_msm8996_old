@@ -282,6 +282,7 @@ int msm_sensor_get_sub_module_index(struct device_node *of_node,
 		src_node = NULL;
 	}
 
+#ifndef CONFIG_ZTE_ANDROID_M_COMPAT
 	src_node = of_parse_phandle(of_node, "qcom,ir-led-src", 0);
 	if (!src_node) {
 		CDBG("%s:%d src_node NULL\n", __func__, __LINE__);
@@ -313,6 +314,7 @@ int msm_sensor_get_sub_module_index(struct device_node *of_node,
 		of_node_put(src_node);
 		src_node = NULL;
 	}
+#endif
 
 	rc = of_property_read_u32(of_node, "qcom,strobe-flash-sd-index", &val);
 	if (rc != -EINVAL) {
@@ -1446,6 +1448,14 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 			pr_err("%s:%d cannot set pin to active state",
 				__func__, __LINE__);
 	}
+#ifdef CONFIG_MSM_OIS_ZTE
+	if (gpio_is_valid(ctrl->ois_en_gpio)) {
+		rc = gpio_request(ctrl->ois_en_gpio, "ois_enable");
+		if (rc)
+			pr_err("%s:%d request oisa_en gpio failed, rc=%d\n",
+				__func__, __LINE__, rc);
+	}
+#endif
 	for (index = 0; index < ctrl->power_setting_size; index++) {
 		CDBG("%s index %d\n", __func__, index);
 		power_setting = &ctrl->power_setting[index];
@@ -1523,6 +1533,25 @@ int msm_camera_power_up(struct msm_camera_power_ctrl_t *ctrl,
 				goto power_up_failed;
 			}
 			break;
+#ifdef CONFIG_MSM_OIS_ZTE
+		case SENSOR_PMIC:
+			if (power_setting->seq_val == INVALID_VREG)
+				break;
+			if (power_setting->seq_val >= SENSOR_PMIC_GPIO_MAX) {
+				pr_err("%s vreg index %d >= max %d\n", __func__,
+					power_setting->seq_val,SENSOR_PMIC_GPIO_MAX);
+				goto power_up_failed;
+			}
+			if (power_setting->seq_val == SENSOR_PMIC_GPIO_OIS) {
+				if (!gpio_is_valid(ctrl->ois_en_gpio)) {
+					pr_err("%s ois_en_gpio invalid gpio %d\n",
+						__func__, ctrl->ois_en_gpio);
+					break;
+				}
+				gpio_direction_output(ctrl->ois_en_gpio, (int)power_setting->config_val);
+			}
+			break;
+#endif
 		case SENSOR_I2C_MUX:
 			if (ctrl->i2c_conf && ctrl->i2c_conf->use_i2c_mux)
 				msm_camera_enable_i2c_mux(ctrl->i2c_conf);
@@ -1633,7 +1662,152 @@ msm_camera_get_power_settings(struct msm_camera_power_ctrl_t *ctrl,
 	}
 	return ps;
 }
+ /*
+  * recovery camera preview after camera sensor is died
+  *
+  * by ZTE_YCM_20160530 yi.changming 400267
+  */
+// --->
+int msm_camera_power_reset(struct msm_camera_power_ctrl_t *ctrl,
+	enum msm_camera_device_type_t device_type,
+	struct msm_camera_i2c_client *sensor_i2c_client)
+{
+	int rc = 0, index = 0;
+	struct msm_sensor_power_setting *power_setting = NULL;
+	struct msm_sensor_power_setting *pd = NULL;
+	struct msm_sensor_power_setting *ps;
 
+	CDBG("%s:%d\n", __func__, __LINE__);
+	if (!ctrl || !sensor_i2c_client) {
+		pr_err("failed ctrl %p sensor_i2c_client %p\n", ctrl,
+			sensor_i2c_client);
+		return -EINVAL;
+	}
+
+	if (device_type == MSM_CAMERA_PLATFORM_DEVICE)
+		sensor_i2c_client->i2c_func_tbl->i2c_util(
+			sensor_i2c_client, MSM_CCI_RELEASE);
+
+	for (index = 0; index < ctrl->power_down_setting_size; index++) {
+		CDBG("%s index %d\n", __func__, index);
+		pd = &ctrl->power_down_setting[index];
+		ps = NULL;
+		CDBG("%s type %d\n", __func__, pd->seq_type);
+		switch (pd->seq_type) {
+		case SENSOR_GPIO:
+			if (pd->seq_val >= SENSOR_GPIO_MAX ||
+				!ctrl->gpio_conf->gpio_num_info) {
+				pr_err("%s gpio index %d >= max %d\n", __func__,
+					pd->seq_val,
+					SENSOR_GPIO_MAX);
+				continue;
+			}
+			if (!ctrl->gpio_conf->gpio_num_info->valid
+				[pd->seq_val])
+				continue;
+			gpio_set_value_cansleep(
+				ctrl->gpio_conf->gpio_num_info->gpio_num
+				[pd->seq_val],
+				(int) pd->config_val);
+			break;
+		case SENSOR_VREG:
+			if (pd->seq_val == INVALID_VREG)
+				break;
+			if (pd->seq_val >= CAM_VREG_MAX) {
+				pr_err("%s vreg index %d >= max %d\n", __func__,
+					pd->seq_val,
+					SENSOR_GPIO_MAX);
+				continue;
+			}
+
+			ps = msm_camera_get_power_settings(ctrl,
+						pd->seq_type,
+						pd->seq_val);
+			if (ps) {
+				if (pd->seq_val < ctrl->num_vreg)
+					msm_camera_config_single_vreg(ctrl->dev,
+						&ctrl->cam_vreg
+						[pd->seq_val],
+						(struct regulator **)
+						&ps->data[0],
+						0);
+				else
+					pr_err("%s:%d:seq_val:%d > num_vreg: %d\n",
+						__func__, __LINE__, pd->seq_val,
+						ctrl->num_vreg);
+			} else
+				pr_err("%s error in power up/down seq data\n",
+								__func__);
+			break;
+		case SENSOR_I2C_MUX:
+			if (ctrl->i2c_conf && ctrl->i2c_conf->use_i2c_mux)
+				msm_camera_disable_i2c_mux(ctrl->i2c_conf);
+			break;
+		default:
+			break;
+		}
+		if (pd->delay > 20) {
+			msleep(pd->delay);
+		} else if (pd->delay) {
+			usleep_range(pd->delay * 1000,
+				(pd->delay * 1000) + 1000);
+		}
+	}
+	usleep_range(10 * 1000,(10 * 1000) + 1000);
+	for (index = 0; index < ctrl->power_setting_size; index++) {
+		CDBG("%s index %d\n", __func__, index);
+		power_setting = &ctrl->power_setting[index];
+		CDBG("%s type %d\n", __func__, power_setting->seq_type);
+		switch (power_setting->seq_type) {
+		case SENSOR_GPIO:
+			if (!ctrl->gpio_conf->gpio_num_info->valid
+				[power_setting->seq_val])
+				continue;
+			CDBG("%s:%d gpio set val %d\n", __func__, __LINE__,
+				ctrl->gpio_conf->gpio_num_info->gpio_num
+				[power_setting->seq_val]);
+			gpio_set_value_cansleep(
+				ctrl->gpio_conf->gpio_num_info->gpio_num
+				[power_setting->seq_val],
+				(int) power_setting->config_val);
+			break;
+		case SENSOR_VREG:
+			if (power_setting->seq_val == INVALID_VREG)
+				break;
+			if (power_setting->seq_val < ctrl->num_vreg)
+				msm_camera_config_single_vreg(ctrl->dev,
+					&ctrl->cam_vreg
+					[power_setting->seq_val],
+					(struct regulator **)
+					&power_setting->data[0],
+					1);
+			else
+				pr_err("ERR:%s: %d usr_idx:%d dts_idx:%d\n",
+					__func__, __LINE__,
+					power_setting->seq_val, ctrl->num_vreg);
+			break;
+		 default:
+			break;
+		}
+		if (power_setting->delay > 20) {
+			msleep(power_setting->delay);
+		} else if (power_setting->delay) {
+			usleep_range(power_setting->delay * 1000,
+				(power_setting->delay * 1000) + 1000);
+		}
+	}
+	if (device_type == MSM_CAMERA_PLATFORM_DEVICE) {
+		rc = sensor_i2c_client->i2c_func_tbl->i2c_util(
+			sensor_i2c_client, MSM_CCI_INIT);
+		if (rc < 0) {
+			pr_err("%s cci_init failed\n", __func__);
+		}
+	}
+	CDBG("%s exit\n", __func__);
+	return rc;
+
+}
+// <---400267
 int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 	enum msm_camera_device_type_t device_type,
 	struct msm_camera_i2c_client *sensor_i2c_client)
@@ -1679,6 +1853,25 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 				[pd->seq_val],
 				(int) pd->config_val);
 			break;
+#ifdef CONFIG_MSM_OIS_ZTE
+		case SENSOR_PMIC:
+			if (pd->seq_val == INVALID_VREG)
+				break;
+			if (pd->seq_val >= SENSOR_PMIC_GPIO_MAX) {
+				pr_err("%s vreg index %d >= max %d\n", __func__,
+					pd->seq_val,SENSOR_PMIC_GPIO_MAX);
+				continue;
+			}
+			if (pd->seq_val == SENSOR_PMIC_GPIO_OIS) {
+				if (!gpio_is_valid(ctrl->ois_en_gpio)) {
+					pr_err("%s ois_en_gpio invalid gpio %d\n",
+						__func__, ctrl->ois_en_gpio);
+					continue;
+				}
+				gpio_direction_output(ctrl->ois_en_gpio, (int)pd->config_val);
+			}
+			break;
+#endif
 		case SENSOR_VREG:
 			if (pd->seq_val == INVALID_VREG)
 				break;
@@ -1741,6 +1934,12 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 	msm_camera_request_gpio_table(
 		ctrl->gpio_conf->cam_gpio_req_tbl,
 		ctrl->gpio_conf->cam_gpio_req_tbl_size, 0);
+#ifdef CONFIG_MSM_OIS_ZTE
+	if (gpio_is_valid(ctrl->ois_en_gpio)) {
+		gpio_direction_output(ctrl->ois_en_gpio, 0);
+		gpio_free(ctrl->ois_en_gpio);
+	}
+#endif
 	CDBG("%s exit\n", __func__);
 	return 0;
 }
