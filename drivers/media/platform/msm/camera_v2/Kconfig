@@ -95,6 +95,12 @@ config MSM_EEPROM
           and also provides support for writing data in case of FLASH ROM.
 	  Currently supports I2C, CCI and SPI protocol
 
+config MSM_EEPROM_ZTE
+	bool "ZTE MSM Camera ROM Interface for Calibration support"
+	depends on MSM_EEPROM
+	---help---
+	  Say Y here to enable the ZTE variant of MSM_EEPROM.
+
 config MSM_ISPIF
         bool "Qualcomm MSM Image Signal Processing interface support"
         depends on MSMB_CAMERA
@@ -241,3 +247,9 @@ config MSM_JPEGDMA
         select V4L2_MEM2MEM_DEV
 	---help---
 	  Enable support for Jpeg dma engine.
+
+config MSM_OIS_ZTE
+	bool "ZTE Optical Image Stabilization support"
+	depends on MSMB_CAMERA
+	---help---
+	   Enables support for OIS on ZTE devices.

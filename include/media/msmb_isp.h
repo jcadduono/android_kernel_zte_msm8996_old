@@ -82,6 +82,7 @@ enum msm_vfe_frame_skip_pattern {
 	EVERY_6FRAME,
 	EVERY_7FRAME,
 	EVERY_8FRAME,
+	EVERY_10FRAME, /* ZTE addition */
 	EVERY_16FRAME,
 	EVERY_32FRAME,
 	SKIP_ALL,
