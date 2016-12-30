@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/compiler.h>
 #include <linux/pstore_ram.h>
+#include <linux/of_address.h>
 
 #define RAMOOPS_KERNMSG_HDR "===="
 #define MIN_MEM_SIZE 4096UL
@@ -347,6 +348,66 @@ static struct ramoops_context oops_cxt = {
 	},
 };
 
+static int of_ramoops_read_size(struct device_node *node,
+				char *property, size_t *size)
+{
+	u32 val = 0;
+
+	if (of_property_read_u32(node, property, &val)) {
+		pr_err("failed to read property \"%s\"\n", property);
+		return -EINVAL;
+	}
+
+	if (val < MIN_MEM_SIZE) {
+		pr_err("too small value for \"%s\", must be at least 0x%lx",
+			property, MIN_MEM_SIZE);
+		return -EINVAL;
+	}
+
+	*size = val;
+
+	return 0;
+}
+
+static int __init of_ramoops_platform_data(struct device_node *node,
+					   struct ramoops_platform_data *pdata)
+{
+	const u32 *addr;
+	u64 size;
+	struct device_node *pnode;
+
+	memset(pdata, 0, sizeof(*pdata));
+
+	pnode = of_parse_phandle(node, "linux,contiguous-region", 0);
+	if (pnode) {
+		addr = of_get_address(pnode, 0, &size, NULL);
+		if (!addr) {
+			pr_err("failed to parse the ramoops memory address\n");
+			of_node_put(pnode);
+			return -EINVAL;
+		}
+		pdata->mem_address = of_read_ulong(addr, 2);
+		pdata->mem_size = (unsigned long)size;
+		of_node_put(pnode);
+	} else {
+		pr_err("failed to read linux,contiguous-region\n");
+		return -EINVAL;
+	}
+
+	if (of_ramoops_read_size(node, "record-size", &pdata->record_size))
+		return -EINVAL;
+	if (of_ramoops_read_size(node, "console-size", &pdata->console_size))
+		return -EINVAL;
+	if (of_ramoops_read_size(node, "ftrace-size", &pdata->ftrace_size))
+		return -EINVAL;
+	if (of_ramoops_read_size(node, "pmsg-size", &pdata->pmsg_size))
+		return -EINVAL;
+
+	pdata->dump_oops = of_property_read_bool(node, "dump-oops");
+
+	return 0;
+}
+
 static void ramoops_free_przs(struct ramoops_context *cxt)
 {
 	int i;
@@ -446,6 +507,7 @@ static int ramoops_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ramoops_platform_data *pdata = pdev->dev.platform_data;
+	struct ramoops_platform_data of_pdata;
 	struct ramoops_context *cxt = &oops_cxt;
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
@@ -456,6 +518,14 @@ static int ramoops_probe(struct platform_device *pdev)
 	 */
 	if (cxt->max_dump_cnt)
 		goto fail_out;
+
+	if (pdev->dev.of_node) {
+		if (of_ramoops_platform_data(pdev->dev.of_node, &of_pdata)) {
+			pr_err("Invalid ramoops device tree data\n");
+			goto fail_out;
+		}
+		pdata = &of_pdata;
+	}
 
 	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
 			!pdata->ftrace_size && !pdata->pmsg_size)) {
@@ -581,12 +651,19 @@ static int __exit ramoops_remove(struct platform_device *pdev)
 	return -EBUSY;
 }
 
+static const struct of_device_id ramoops_of_match[] = {
+	{ .compatible = "qcom,ramoops", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ramoops_of_match);
+
 static struct platform_driver ramoops_driver = {
 	.probe		= ramoops_probe,
 	.remove		= __exit_p(ramoops_remove),
 	.driver		= {
 		.name	= "ramoops",
 		.owner	= THIS_MODULE,
+		.of_match_table = ramoops_of_match,
 	},
 };
 
