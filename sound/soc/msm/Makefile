@@ -22,6 +22,9 @@ obj-$(CONFIG_SND_SOC_MSM8994) += snd-soc-msm8994.o
 
 # for MSM8996 sound card driver
 snd-soc-msm8996-objs := msm8996.o apq8096-auto.o
+ifeq ($(CONFIG_SND_SOC_AK4961),y)
+snd-soc-msm8996-objs := msm8996-ak4961.o
+endif
 obj-$(CONFIG_SND_SOC_MSM8996) += snd-soc-msm8996.o
 
 # for MSM 8x16/8952 sound card driver
