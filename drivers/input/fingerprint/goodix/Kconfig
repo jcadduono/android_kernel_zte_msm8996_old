@@ -1,0 +1,2 @@
+config FINGERPRINT_GOODIX_GF3118M
+	tristate "GOODIX GF3118M fingerprint driver"
