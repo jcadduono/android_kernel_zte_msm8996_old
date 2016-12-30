@@ -15,6 +15,8 @@ source "drivers/input/touchscreen/synaptics_dsx/Kconfig"
 
 source "drivers/input/touchscreen/synaptics_dsx_zte/Kconfig"
 
+source "drivers/input/touchscreen/ndt_stress/Kconfig"
+
 config OF_TOUCHSCREEN
 	def_tristate INPUT
 	depends on INPUT && OF

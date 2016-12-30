@@ -1,0 +1,9 @@
+#
+# NDT Force Touch driver configuration
+#
+
+config FORCE_TOUCH_NDT
+	tristate "Force Touch by NDT"
+	depends on I2C && INPUT
+	help
+	  This driver provides support for Force Touch by NDT.
