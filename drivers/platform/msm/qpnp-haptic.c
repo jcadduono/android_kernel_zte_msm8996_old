@@ -10,6 +10,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) "%s: %s: " fmt, KBUILD_MODNAME, __func__
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -25,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/qpnp/qpnp-haptic.h>
 #include "../../staging/android/timed_output.h"
+#include <linux/clk.h>
 
 #define QPNP_IRQ_FLAGS	(IRQF_TRIGGER_RISING | \
 			IRQF_TRIGGER_FALLING | \
@@ -319,7 +322,8 @@ struct qpnp_hap {
 	u8 lra_res_cal_period;
 	u8 sc_duration;
 	u8 ext_pwm_dtest_line;
-	bool state;
+	//bool state;
+	u32 state;
 	bool use_play_irq;
 	bool use_sc_irq;
 	bool manage_pon_supply;
@@ -330,7 +334,12 @@ struct qpnp_hap {
 	bool sup_brake_pat;
 	bool correct_lra_drive_freq;
 	bool misc_trim_error_rc19p2_clk_reg_present;
+	struct clk *clk; //zte add to avoid xo clk disable when power collapse
 };
+
+//export from zte_misc.c
+extern bool is_haptics_zte(void);
+static int clk_enabled = 0;
 
 static struct qpnp_hap *ghap;
 
@@ -1289,6 +1298,42 @@ static ssize_t qpnp_hap_ramp_test_data_show(struct device *dev,
 
 }
 
+/***************************************************/
+/*--ZTE-- sysfs store function for vmax_mv */
+static ssize_t qpnp_hap_vmax_mv_store(struct device *dev,
+		struct device_attribute *attr, const char *buf,size_t count)
+{
+	struct timed_output_dev *timed_dev = dev_get_drvdata(dev);
+	struct qpnp_hap *hap = container_of(timed_dev, struct qpnp_hap,
+					 timed_dev);
+	int data, rc;
+
+	if (sscanf(buf, "%d", &data) != 1)
+		return -EINVAL;
+
+	hap->vmax_mv = data;
+	rc = qpnp_hap_vmax_config(hap);
+
+	if (rc)
+		return rc;
+
+	return count;
+}
+
+/* sysfs show function for vmax_mv */
+static ssize_t qpnp_hap_vmax_mv_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct timed_output_dev *timed_dev = dev_get_drvdata(dev);
+	struct qpnp_hap *hap = container_of(timed_dev, struct qpnp_hap,
+					 timed_dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", hap->vmax_mv);
+}
+
+//ZTE add for vmax_mv
+/***************************************************/
+
 /* sysfs attributes */
 static struct device_attribute qpnp_hap_attrs[] = {
 	__ATTR(wf_s0, (S_IRUGO | S_IWUSR | S_IWGRP),
@@ -1336,6 +1381,9 @@ static struct device_attribute qpnp_hap_attrs[] = {
 	__ATTR(min_max_test, (S_IRUGO | S_IWUSR | S_IWGRP),
 			qpnp_hap_min_max_test_data_show,
 			qpnp_hap_min_max_test_data_store),
+	__ATTR(ztevmax_mv, (S_IRUGO | S_IWUSR | S_IWGRP),
+			qpnp_hap_vmax_mv_show,
+			qpnp_hap_vmax_mv_store),
 };
 
 static void calculate_lra_code(struct qpnp_hap *hap)
@@ -1473,6 +1521,7 @@ static void correct_auto_res_error(struct work_struct *auto_res_err_work)
 	}
 }
 
+#define BLUECOM_HAP_VMAX_MV		2668
 /* set api for haptics */
 static int qpnp_hap_set(struct qpnp_hap *hap, int on)
 {
@@ -1488,9 +1537,40 @@ static int qpnp_hap_set(struct qpnp_hap *hap, int on)
 	} else if (hap->play_mode == QPNP_HAP_BUFFER ||
 			hap->play_mode == QPNP_HAP_DIRECT) {
 		if (on) {
+#if 0  //Qualcomm
 			if (hap->correct_lra_drive_freq ||
 				hap->auto_res_mode == QPNP_HAP_AUTO_RES_QWD)
 				qpnp_hap_auto_res_enable(hap, 0);
+#else
+			if (is_haptics_zte()) { //zte add
+				u32 max_mv = BLUECOM_HAP_VMAX_MV;
+				val = ((on & 0xFF0000)>>16);
+				max_mv = val * QPNP_HAP_VMAX_MIN_MV;
+				if (val > BLUECOM_HAP_VMAX_MV/QPNP_HAP_VMAX_MIN_MV)
+					max_mv = BLUECOM_HAP_VMAX_MV;
+				hap->vmax_mv = max_mv;
+				rc = qpnp_hap_vmax_config(hap);
+			}
+
+			/*
+			 * For auto resonance detection to work properly,
+			 * sufficient back-emf has to be generated. In general,
+			 * back-emf takes some time to build up. When the auto
+			 * resonance mode is chosen as QWD, high-z will be
+			 * applied for every LRA cycle and hence there won't be
+			 * enough back-emf at the start-up. Hence, the motor
+			 * needs to vibrate for few LRA cycles after the PLAY
+			 * bit is asserted. So disable the auto resonance here
+			 * and enable it after the sleep of
+			 * 'time_required_to_generate_back_emf_us' is completed.
+			 */
+			if (!clk_enabled){
+				clk_enabled = 1;
+				rc = clk_prepare_enable(hap->clk);
+				if (rc)
+					pr_err("clk_enable failed, rc=%d\n", rc);
+			}
+#endif
 
 			rc = qpnp_hap_mod_enable(hap, on);
 			if (rc < 0)
@@ -1537,6 +1617,11 @@ static int qpnp_hap_set(struct qpnp_hap *hap, int on)
 				hrtimer_cancel(&hap->auto_res_err_poll_timer);
 				calculate_lra_code(hap);
 			}
+
+			if (clk_enabled) {
+				clk_disable_unprepare(hap->clk);
+				clk_enabled = 0;
+			}
 		}
 	}
 
@@ -1564,9 +1649,18 @@ static void qpnp_hap_td_enable(struct timed_output_dev *dev, int value)
 		}
 		hap->state = 0;
 	} else {
+		if (is_haptics_zte()) {
+			int vtg_value = value & 0xFF0000;
+			value &= 0xFFFF;
+
+			if (!vtg_value )
+				vtg_value = (BLUECOM_HAP_VMAX_MV/QPNP_HAP_VMAX_MIN_MV)<<16;
+			hap->state = 1 | vtg_value;
+		} else {
+			hap->state = 1;
+		}
 		value = (value > hap->timeout_ms ?
 				 hap->timeout_ms : value);
-		hap->state = 1;
 		hrtimer_start(&hap->hap_timer,
 			      ktime_set(value / 1000, (value % 1000) * 1000000),
 			      HRTIMER_MODE_REL);
@@ -2214,6 +2308,15 @@ static int qpnp_haptic_probe(struct spmi_device *spmi)
 		return rc;
 	}
 
+	pr_info("Haptics: sw:act_type=%s hw:is_haptics_zte()=%d(%s)\n", (hap->act_type==QPNP_HAP_LRA)?"LRA":"ERM", is_haptics_zte(), is_haptics_zte()?"LRA":"ERM");
+	if ((hap->act_type != QPNP_HAP_LRA) && (is_haptics_zte())) {
+		pr_info("Haptics: found LRA hw, but sw not support LRA, act_type=%s\n", (hap->act_type==QPNP_HAP_LRA)?"LRA":"ERM");
+		return -EINVAL;
+	} else if ((hap->act_type == QPNP_HAP_LRA) && (!is_haptics_zte())) {
+		pr_info("Haptics: found ERM hw, but sw not support ERM, act_type=%s\n", (hap->act_type==QPNP_HAP_LRA)?"LRA":"ERM");
+		return -EINVAL;
+	}
+
 	rc = qpnp_hap_config(hap);
 	if (rc) {
 		dev_err(&spmi->dev, "hap config failed\n");
@@ -2235,6 +2338,13 @@ static int qpnp_haptic_probe(struct spmi_device *spmi)
 	hap->timed_dev.name = "vibrator";
 	hap->timed_dev.get_time = qpnp_hap_get_time;
 	hap->timed_dev.enable = qpnp_hap_td_enable;
+
+	hap->clk=clk_get(&hap->spmi->dev, "xo");
+	if (IS_ERR(hap->clk)) {
+		rc = PTR_ERR(hap->clk);
+		pr_err( "clk_get(\"xo\") failed,error:%d\n", rc);
+	}else
+		pr_err( "clk_get(\"xo\") succeed\n");
 
 	if (hap->act_type == QPNP_HAP_LRA && hap->correct_lra_drive_freq) {
 		INIT_WORK(&hap->auto_res_err_work, correct_auto_res_error);
