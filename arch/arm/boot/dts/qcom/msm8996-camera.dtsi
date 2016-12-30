@@ -39,7 +39,11 @@
 			"ispif_ahb_clk", "csiphy_timer_src_clk",
 			"csiphy_timer_clk", "camss_ahb_clk",
 			"csiphy_3p_clk_src", "csi_phy_3p_clk";
+#ifdef BOARD_AILSA_II
+		qcom,clock-rates = <0 0 266670000 0 0 200000000 0>;
+#else
 		qcom,clock-rates = <0 0 200000000 0 0 100000000 0>;
+#endif
 	};
 
 	qcom,csiphy@a35000 {
@@ -110,7 +114,11 @@
 			"ispif_ahb_clk", "csi_src_clk", "csi_clk",
 			"csi_phy_clk", "csi_ahb_clk", "csi_rdi_clk",
 			"csi_pix_clk", "camss_ahb_clk";
+#ifdef BOARD_AILSA_II
+		qcom,clock-rates = <0 0 0 480000000 0 0 0 0 0 0>;
+#else
 		qcom,clock-rates = <0 0 0 200000000 0 0 0 0 0 0>;
+#endif
 		status = "ok";
 	};
 
@@ -256,7 +264,11 @@
 			"vfe0_clk_src", "camss_vfe_vfe0_clk", "camss_csi_vfe0_clk",
 			"vfe1_clk_src", "camss_vfe_vfe1_clk", "camss_csi_vfe1_clk";
 		qcom,clock-rates = <0 0 0 0
+#ifdef BOARD_AILSA_II
+			480000000 0 0 0
+#else
 			200000000 0 0 0
+#endif
 			200000000 0 0 0
 			200000000 0 0 0
 			200000000 0 0 0
@@ -781,7 +793,11 @@
 	qcom,hw-thd-dat = <13>;
 	qcom,hw-thd-sta = <18>;
 	qcom,hw-tbuf = <32>;
+#ifdef BOARD_AILSA_II
+	qcom,hw-scl-stretch-en = <1>;
+#else
 	qcom,hw-scl-stretch-en = <0>;
+#endif
 	qcom,hw-trdhld = <6>;
 	qcom,hw-tsp = <3>;
 	status = "ok";

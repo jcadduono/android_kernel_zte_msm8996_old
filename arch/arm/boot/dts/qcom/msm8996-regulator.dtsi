@@ -259,9 +259,15 @@
 	rpm-regulator-ldoa17 {
 		status = "okay";
 		pm8994_l17: regulator-l17 {
+#ifdef BOARD_AILSA_II
+			regulator-min-microvolt = <2900000>;
+			regulator-max-microvolt = <2900000>;
+			qcom,init-voltage = <2900000>;
+#else
 			regulator-min-microvolt = <2500000>;
 			regulator-max-microvolt = <2500000>;
 			qcom,init-voltage = <2500000>;
+#endif
 			status = "okay";
 		};
 	};
