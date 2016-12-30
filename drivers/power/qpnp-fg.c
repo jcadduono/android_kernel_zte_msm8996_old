@@ -238,10 +238,10 @@ enum fg_mem_data_index {
 static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	/*       ID                    Address, Offset, Value*/
 	SETTING(SOFT_COLD,       0x454,   0,      100),
-	SETTING(SOFT_HOT,        0x454,   1,      400),
-	SETTING(HARD_COLD,       0x454,   2,      50),
-	SETTING(HARD_HOT,        0x454,   3,      450),
-	SETTING(RESUME_SOC,      0x45C,   1,      0),
+	SETTING(SOFT_HOT,        0x454,   1,      450),
+	SETTING(HARD_COLD,       0x454,   2,      0),
+	SETTING(HARD_HOT,        0x454,   3,      550),
+	SETTING(RESUME_SOC,      0x45C,   1,      99),
 	SETTING(BCL_LM_THRESHOLD, 0x47C,   2,      50),
 	SETTING(BCL_MH_THRESHOLD, 0x47C,   3,      752),
 	SETTING(TERM_CURRENT,	 0x40C,   2,      250),
@@ -249,7 +249,7 @@ static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	SETTING(IRQ_VOLT_EMPTY,	 0x458,   3,      3100),
 	SETTING(CUTOFF_VOLTAGE,	 0x40C,   0,      3200),
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      30),
-	SETTING(DELTA_SOC,	 0x450,   3,      1),
+	SETTING(DELTA_SOC,	 0x450,   3,      2),
 	SETTING(BATT_LOW,	 0x458,   0,      4200),
 	SETTING(THERM_DELAY,	 0x4AC,   3,      0),
 };
@@ -315,7 +315,7 @@ module_param_named(
 	debug_mask, fg_debug_mask, int, S_IRUSR | S_IWUSR
 );
 
-static int fg_reset_on_lockup;
+static int fg_reset_on_lockup = 1;
 
 static int fg_sense_type = -EINVAL;
 static int fg_restart;
@@ -531,6 +531,7 @@ struct fg_chip {
 	bool			vbat_low_irq_enabled;
 	bool			full_soc_irq_enabled;
 	bool			charge_full;
+	bool			charge_full_zte;
 	bool			hold_soc_while_full;
 	bool			input_present;
 	bool			otg_present;
@@ -546,6 +547,7 @@ struct fg_chip {
 	struct delayed_work	update_sram_data;
 	struct delayed_work	update_temp_work;
 	struct delayed_work	check_empty_work;
+	struct delayed_work	start_update_work;//zte add
 	char			*batt_profile;
 	u8			thermal_coefficients[THERMAL_COEFF_N_BYTES];
 	u32			cc_cv_threshold_mv;
@@ -1962,10 +1964,12 @@ static void fg_handle_battery_insertion(struct fg_chip *chip)
 }
 
 
+#if 0
 static int soc_to_setpoint(int soc)
 {
 	return DIV_ROUND_CLOSEST(soc * 255, 100);
 }
+#endif
 
 static void batt_to_setpoint_adc(int vbatt_mv, u8 *data)
 {
@@ -2172,6 +2176,8 @@ static int get_monotonic_soc_raw(struct fg_chip *chip)
 		pr_info_ratelimited("raw: 0x%02x\n", cap[0]);
 	return cap[0];
 }
+static int profile_loaded_zte = 0;
+module_param(profile_loaded_zte, int, 0644);
 
 #define EMPTY_CAPACITY		0
 #define DEFAULT_CAPACITY	50
@@ -2182,6 +2188,14 @@ static int get_prop_capacity(struct fg_chip *chip)
 {
 	int msoc, rc;
 	bool vbatt_low_sts;
+	u8 buffer[3];
+
+	fg_mem_lock(chip);
+	rc = fg_mem_read(chip, buffer, 0x56C, 3, 1, 0);
+	if (rc) {
+		pr_err("Unable to read battery soc: %d\n", rc);
+	}
+	fg_mem_release(chip);
 
 	if (chip->use_last_soc && chip->last_soc) {
 		if (chip->last_soc == FULL_SOC_RAW)
@@ -2196,6 +2210,10 @@ static int get_prop_capacity(struct fg_chip *chip)
 
 	if (!chip->profile_loaded && !chip->use_otp_profile)
 		return DEFAULT_CAPACITY;
+	if ((chip->charge_full_zte) && (get_monotonic_soc_raw(chip) < 252))
+		return FULL_CAPACITY;
+	else
+		chip->charge_full_zte = false;
 
 	if (chip->charge_full)
 		return FULL_CAPACITY;
@@ -2257,9 +2275,25 @@ static int64_t get_batt_id(unsigned int battery_id_uv, u8 bid_info)
 	return battery_id_ohm;
 }
 
+static unsigned long last_bms_update = 0;
+static int update_sram_data(struct fg_chip *chip, int *resched_ms);
+static void start_update_work_func(struct work_struct *work)
+{
+	struct fg_chip *chip = container_of(work,struct fg_chip,
+				start_update_work.work);
+	int resched_ms;
+	if (time_after(jiffies, last_bms_update+2*HZ)) {
+		update_sram_data(chip,&resched_ms);
+		last_bms_update = jiffies;
+		pr_debug("updating bms sram\n");
+	}
+}
+//zte add end
+
 #define DEFAULT_TEMP_DEGC	250
 static int get_sram_prop_now(struct fg_chip *chip, unsigned int type)
 {
+	schedule_delayed_work(&chip->start_update_work, 0);//zte add
 	if (fg_debug_mask & FG_POWER_SUPPLY)
 		pr_info("addr 0x%02X, offset %d value %d\n",
 			fg_data[type].address, fg_data[type].offset,
@@ -5388,8 +5422,13 @@ static void set_resume_soc_work(struct work_struct *work)
 	if (is_input_present(chip) && !chip->resume_soc_lowered) {
 		if (!chip->charge_done)
 			goto done;
+		//ZTE MODIFY
+		if (chip->health == POWER_SUPPLY_HEALTH_GOOD)
+			resume_soc_raw = settings[FG_MEM_RESUME_SOC].value;
+		else
 		resume_soc_raw = get_monotonic_soc_raw(chip)
 			- (0xFF - settings[FG_MEM_RESUME_SOC].value);
+
 		if (resume_soc_raw > 0 && resume_soc_raw < FULL_SOC_RAW) {
 			rc = fg_set_resume_soc(chip, resume_soc_raw);
 			if (rc) {
@@ -6463,6 +6502,7 @@ done:
 	chip->first_profile_loaded = true;
 	chip->profile_loaded = true;
 	chip->soc_reporting_ready = true;
+	profile_loaded_zte = true;
 	chip->battery_missing = is_battery_missing(chip);
 	update_chg_iterm(chip);
 	update_cc_cv_setpoint(chip);
@@ -6584,15 +6624,17 @@ static void charge_full_work(struct work_struct *work)
 	int rc;
 	u8 buffer[3];
 	int bsoc;
-	int resume_soc_raw = FULL_SOC_RAW - settings[FG_MEM_RESUME_SOC].value;
+	int resume_soc_raw = settings[FG_MEM_RESUME_SOC].value -3;
 	bool disable = false;
 	u8 reg;
 
+#if 0
 	if (chip->status != POWER_SUPPLY_STATUS_FULL) {
 		if (fg_debug_mask & FG_STATUS)
 			pr_info("battery not full: %d\n", chip->status);
 		disable = true;
 	}
+#endif
 
 	fg_mem_lock(chip);
 	rc = fg_mem_read(chip, buffer, BATTERY_SOC_REG, 3, 1, 0);
@@ -6638,7 +6680,10 @@ static void charge_full_work(struct work_struct *work)
 out:
 	fg_mem_release(chip);
 	if (disable)
+	{
 		chip->charge_full = false;
+		chip->charge_full_zte = true;
+	}
 }
 
 static void update_bcl_thresholds(struct fg_chip *chip)
@@ -7910,7 +7955,8 @@ static int fg_common_hw_init(struct fg_chip *chip)
 	}
 
 	rc = fg_mem_masked_write(chip, settings[FG_MEM_DELTA_SOC].address, 0xFF,
-			soc_to_setpoint(settings[FG_MEM_DELTA_SOC].value),
+			//soc_to_setpoint(settings[FG_MEM_DELTA_SOC].value),
+			settings[FG_MEM_DELTA_SOC].value,
 			settings[FG_MEM_DELTA_SOC].offset);
 	if (rc) {
 		pr_err("failed to write delta soc rc=%d\n", rc);
@@ -8025,6 +8071,20 @@ static int fg_common_hw_init(struct fg_chip *chip)
 		pr_err("failed to write to 0x4B3 rc=%d\n", rc);
 		return rc;
 	}
+
+	rc = fg_mem_read(chip, &val, RSLOW_CFG_REG, 1, RSLOW_CFG_OFFSET,
+			0);
+	if (rc) {
+		pr_err("unable to read rslow cfg: %d\n", rc);
+		return rc;
+	}
+
+	if (val & RSLOW_CFG_ON_VAL)
+		chip->rslow_comp.active = true;
+
+	if (fg_debug_mask & FG_STATUS)
+		pr_info("rslow_comp active is %sabled\n",
+			chip->rslow_comp.active ? "en" : "dis");
 
 	return 0;
 }
@@ -8638,6 +8698,7 @@ static int fg_probe(struct spmi_device *spmi)
 	init_completion(&chip->first_soc_done);
 	init_completion(&chip->fg_reset_done);
 	dev_set_drvdata(&spmi->dev, chip);
+	INIT_DELAYED_WORK(&chip->start_update_work, start_update_work_func); //zte add
 
 	spmi_for_each_container_dev(spmi_resource, spmi) {
 		if (!spmi_resource) {
