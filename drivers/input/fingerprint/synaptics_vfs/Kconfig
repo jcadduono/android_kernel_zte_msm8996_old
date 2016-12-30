@@ -1,0 +1,2 @@
+config INPUT_SYNA_VFS
+	tristate "Synaptics VFS fingerprint driver"
