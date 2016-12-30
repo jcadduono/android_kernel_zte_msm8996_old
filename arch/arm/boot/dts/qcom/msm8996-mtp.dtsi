@@ -88,7 +88,11 @@
 	qcom,clk-rates = <400000 20000000 25000000 50000000 100000000 200000000>;
 	qcom,bus-speed-mode = "SDR12", "SDR25", "SDR50", "DDR50", "SDR104";
 
+#ifdef BOARD_AILSA_II
+	cd-gpios = <&tlmm 95 0x0>;
+#else
 	cd-gpios = <&tlmm 95 0x1>;
+#endif
 
 	status = "ok";
 };
@@ -335,7 +339,9 @@
 	};
 };
 
+#ifndef BOARD_AILSA_II
 #include "msm8996-mdss-panels.dtsi"
+#endif
 
 &mdss_mdp {
 	qcom,mdss-pref-prim-intf = "dsi";
@@ -346,25 +352,40 @@
 };
 
 &mdss_dsi0 {
+#ifdef BOARD_AILSA_II
+	qcom,dsi-pref-prim-pan = <&dsi_dual_zte_samsung_5p5_wqhd_cmd>;
+	zte,lcd-3v-vsp-enable-gpio = <&tlmm 40 0>;
+#else
 	qcom,dsi-pref-prim-pan = <&dsi_dual_sharp_video>;
+#endif
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
 	qcom,platform-te-gpio = <&tlmm 10 0>;
 	qcom,platform-reset-gpio = <&tlmm 8 0>;
+#ifndef BOARD_AILSA_II
 	qcom,platform-bklight-en-gpio = <&pm8994_gpios 14 0>;
+#endif
 };
 
 &mdss_dsi1 {
+#ifdef BOARD_AILSA_II
+	qcom,dsi-pref-prim-pan = <&dsi_dual_zte_samsung_5p5_wqhd_cmd>;
+	zte,lcd-3v-vsp-enable-gpio = <&tlmm 40 0>;
+#else
 	qcom,dsi-pref-prim-pan = <&dsi_dual_sharp_video>;
+#endif
 	pinctrl-names = "mdss_default", "mdss_sleep";
 	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
 	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
 	qcom,platform-te-gpio = <&tlmm 10 0>;
 	qcom,platform-reset-gpio = <&tlmm 8 0>;
+#ifndef BOARD_AILSA_II
 	qcom,platform-bklight-en-gpio = <&pm8994_gpios 14 0>;
+#endif
 };
 
+#ifndef BOARD_AILSA_II
 &labibb {
 	status = "ok";
 	qpnp,qpnp-labibb-mode = "lcd";
@@ -490,6 +511,7 @@
 		#include "batterydata-itech-3000mah.dtsi"
 	};
 };
+#endif
 
 &pmi8994_charger {
 	qcom,dc-psy-type = "Wipower";
@@ -511,7 +533,11 @@
 		compatible = "qcom,smb1351-charger";
 		reg = <0x1d>;
 		qcom,parallel-charger;
+#ifdef BOARD_AILSA_II
+		qcom,float-voltage-mv = <4350>;
+#else
 		qcom,float-voltage-mv = <4400>;
+#endif
 		qcom,recharge-mv = <100>;
 	};
 };
@@ -573,6 +599,10 @@
 		qcom,pull = <5>;	/* No Pull */
 		qcom,vin-sel = <2>;	/* 1.8 */
 		qcom,src-sel = <0>;	/* CONSTANT */
+#ifdef BOARD_AILSA_II
+		qcom,invert = <0>;	/* Output low initially */
+		qcom,out-strength = <1>;  /* QPNP_PIN_OUT_STRENGTH_LOW */
+#endif
 		qcom,master-en = <1>;	/* ENABLE GPIO */
 		status = "okay";
 	};
@@ -582,6 +612,10 @@
 		qcom,pull = <5>;	/* No Pull */
 		qcom,vin-sel = <2>;	/* 1.8 */
 		qcom,src-sel = <0>;	/* CONSTANT */
+#ifdef BOARD_AILSA_II
+		qcom,invert = <0>;	/* Output low initially */
+		qcom,out-strength = <1>;  /* QPNP_PIN_OUT_STRENGTH_LOW */
+#endif
 		qcom,master-en = <1>;	/* ENABLE GPIO */
 		status = "okay";
 	};
@@ -590,7 +624,11 @@
 		qcom,mode = <1>;
 		qcom,pull = <5>;
 		qcom,vin-sel = <2>;
+#ifdef BOARD_AILSA_II
+		qcom,src-sel = <0>;
+#else
 		qcom,src-sel = <2>;
+#endif
 		qcom,master-en = <1>;
 		status = "okay";
 	};
@@ -622,6 +660,7 @@
 	};
 };
 
+#ifndef BOARD_AILSA_II
 &soc {
 	i2c@75ba000 {
 		synaptics@20 {
@@ -736,8 +775,10 @@
 					  "SpkrLeft", "SpkrRight";
 	};
 };
+#endif
 
 &pm8994_gpios {
+#ifndef BOARD_AILSA_II
 	gpio@c600 { /* GPIO 7 - NFC DWL REQ */
 		qcom,mode = <1>;
 		qcom,output-type = <0>;
@@ -748,6 +789,7 @@
 		qcom,master-en = <1>;
 		status = "okay";
 	};
+#endif
 
 	gpio@c700 { /* GPIO 8 - WLAN_EN */
 		qcom,mode = <1>;		/* Digital output*/
@@ -770,6 +812,7 @@
 		status = "okay";
 	};
 
+#ifndef BOARD_AILSA_II
 	gpio@c900 { /* GPIO 10 - NFC CLK _REQ*/
 		qcom,mode = <0>;
 		qcom,vin-sel = <2>;
@@ -788,6 +831,8 @@
 		qcom,master-en = <1>;	/* ENABLE GPIO */
 		status = "okay";
 	};
+#endif
+
 	gpio@c100 { /* GPIO 2 */
 		qcom,mode = <0>;
 		qcom,pull = <0>;
@@ -812,6 +857,7 @@
 		status = "okay";
 	};
 
+#ifndef BOARD_AILSA_II
 	gpio@cc00 { /* GPIO 13 - HPH_EN0 */
 		qcom,mode = <1>;
 		qcom,output-type = <0>;
@@ -822,6 +868,7 @@
 		qcom,master-en = <1>;
 		status = "okay";
 	};
+#endif
 
 	gpio@ce00 { /* GPIO 15 */
 		qcom,mode = <1>;
@@ -868,6 +915,7 @@
 	status = "ok";
 };
 
+#ifndef BOARD_AILSA_II
 &i2c_6 {
 	at24@51 {
 		compatible = "atmel,24c32";
@@ -901,6 +949,7 @@
 		interrupt-names = "silabs_fm_int", "silabs_fm_status_int";
 	};
 };
+#endif
 
 &i2c_8 { /* BLSP2 QUP2 */
 	nq@28 {
@@ -908,8 +957,12 @@
 		reg = <0x28>;
 		qcom,nq-irq = <&tlmm 9 0x00>;
 		qcom,nq-ven = <&tlmm 12 0x00>;
+#ifdef BOARD_AILSA_II
+		qcom,nq-firm = <&tlmm 96 0x00>;
+#else
 		qcom,nq-firm = <&pm8994_gpios 7 0x00>;
 		qcom,nq-clkreq = <&pm8994_gpios 10 0x00>;
+#endif
 		interrupt-parent = <&tlmm>;
 		qcom,clk-src = "BBCLK2";
 		interrupts = <9 0>;

@@ -17,7 +17,9 @@
 		compatible = "qcom,camera-flash";
 		qcom,flash-source = <&pmi8994_flash0 &pmi8994_flash1>;
 		qcom,torch-source = <&pmi8994_torch0 &pmi8994_torch1>;
+#ifndef BOARD_AILSA_II
 		qcom,switch-source = <&pmi8994_switch>;
+#endif
 	};
 };
 
@@ -34,6 +36,7 @@
 		qcom,cam-vreg-op-mode = <100000>;
 	};
 
+#ifndef BOARD_AILSA_II
 	actuator1: qcom,actuator@1 {
 		cell-index = <1>;
 		reg = <0x1>;
@@ -45,24 +48,40 @@
 		qcom,cam-vreg-max-voltage = <2800000>;
 		qcom,cam-vreg-op-mode = <100000>;
 	};
+#endif
 
 	ois0: qcom,ois@0 {
 		cell-index = <0>;
 		reg = <0x0>;
 		compatible = "qcom,ois";
 		qcom,cci-master = <0>;
+#ifndef BOARD_AILSA_II
 		cam_vaf-supply = <&pm8994_l23>;
 		qcom,cam-vreg-name = "cam_vaf";
 		qcom,cam-vreg-min-voltage = <2800000>;
 		qcom,cam-vreg-max-voltage = <2800000>;
 		qcom,cam-vreg-op-mode = <100000>;
+#endif
 	};
 
 	eeprom0: qcom,eeprom@0 {
 		cell-index = <0>;
 		reg = <0>;
+#ifdef BOARD_AILSA_II
+		compatible = "zte,eeprom-s5k2t8";
+		qcom,eeprom-name = "common_s5k2t8";
+		qcom,slave-addr = <0xa0>;
+#else
 		compatible = "qcom,eeprom";
+#endif
 		qcom,cci-master = <0>;
+#ifdef BOARD_AILSA_II
+		cam_vio-supply = <&pm8994_lvs1>;
+		qcom,cam-vreg-name =  "cam_vio";
+		qcom,cam-vreg-min-voltage = <0>;
+		qcom,cam-vreg-max-voltage = <0>;
+		qcom,cam-vreg-op-mode = <0>;
+#else
 		cam_vdig-supply = <&pm8994_s3>;
 		cam_vio-supply = <&pm8994_lvs1>;
 		cam_vana-supply = <&pm8994_l17>;
@@ -72,11 +91,20 @@
 		qcom,cam-vreg-min-voltage = <1300000 0 2500000 2800000>;
 		qcom,cam-vreg-max-voltage = <1300000 0 2500000 2800000>;
 		qcom,cam-vreg-op-mode = <105000 0 80000 100000>;
+#endif
 		qcom,gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk0_active &cam_sensor_rear_active>;
 		pinctrl-1 = <&cam_sensor_mclk0_suspend
 			&cam_sensor_rear_suspend>;
+#ifdef BOARD_AILSA_II
+		qcom,cam-power-seq-type = "sensor_vreg", "sensor_i2c_mux";
+		qcom,cam-power-seq-val = "cam_vio", "none";
+		qcom,cam-power-seq-cfg-val = <1 0>;
+		qcom,cam-power-seq-delay =   <3 0>;
+		zte,num-blocks = <1>;
+		zte,mem0 = <5372  0x0000 2 0x0 1 0>;
+#else
 		gpios = <&tlmm 13 0>,
 			<&tlmm 30 0>,
 			<&tlmm 29 0>;
@@ -87,6 +115,7 @@
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK0",
 					  "CAM_RESET0",
 					  "CAM_STANDBY0";
+#endif
 		clocks = <&clock_mmss clk_mclk0_clk_src>,
 				<&clock_mmss clk_camss_mclk0_clk>;
 		clock-names = "cam_src_clk", "cam_clk";
@@ -96,7 +125,13 @@
 	eeprom1: qcom,eeprom@1 {
 		cell-index = <1>;
 		reg = <0x1>;
+#ifdef BOARD_AILSA_II
+		compatible = "zte,eeprom-ov8856";
+		qcom,eeprom-name = "common_ov8856";
+		qcom,slave-addr = <0x6c>;
+#else
 		compatible = "qcom,eeprom";
+#endif
 		qcom,cci-master = <1>;
 		cam_vdig-supply = <&pm8994_l27>;
 		cam_vio-supply = <&pm8994_lvs1>;
@@ -110,6 +145,48 @@
 		pinctrl-0 = <&cam_sensor_mclk2_active &cam_sensor_front_active>;
 		pinctrl-1 = <&cam_sensor_mclk2_suspend
 			&cam_sensor_front_suspend>;
+#ifdef BOARD_AILSA_II
+		gpios = <&tlmm 15 0>,
+			<&tlmm 23 0>,
+			<&tlmm 26 0>,
+			<&tlmm 24 0>,
+			<&tlmm 25 0>;
+		qcom,gpio-reset = <1>;
+		qcom,gpio-standby = <2>;
+		qcom,gpio-vdig = <3>;
+		qcom,gpio-vio = <4>;
+		qcom,gpio-req-tbl-num = <0 1 2 3 4>;
+		qcom,gpio-req-tbl-flags = <1 0 0 0 0>;
+		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
+					  "CAM_RESET2",
+					  "CAM_STANDBY2",
+					  "CAM_DVDD2",
+					  "CAM_IOVDD2";
+		qcom,cam-power-seq-type = "sensor_gpio",
+					  "sensor_gpio",
+					  "sensor_gpio",
+					  "sensor_gpio",
+					  "sensor_vreg",
+					  "sensor_clk",
+					  "sensor_gpio",
+					  "sensor_gpio",
+					  "sensor_i2c_mux";
+		qcom,cam-power-seq-val = "sensor_gpio_reset",
+					 "sensor_gpio_standby",
+					 "sensor_gpio_vio",
+					 "sensor_gpio_vdig",
+					 "cam_vana",
+					 "sensor_cam_mclk",
+					 "sensor_gpio_reset",
+					 "sensor_gpio_standby",
+					 "none";
+		qcom,cam-power-seq-cfg-val = <0 0   1 1 1 24000000  1 1 0>;
+		qcom,cam-power-seq-delay =   <0 2   0 3 3 2         3 3 0>;
+		zte,num-blocks = <3>;
+		zte,mem0 = <17   0x7010 2 0x0 1 0>; /* id wb */
+		zte,mem1 = <7    0x7021 2 0x0 1 0>; /* af    */
+		zte,mem2 = <483  0x7028 2 0x0 1 0>; /* lens  */
+#else
 		gpios = <&tlmm 15 0>,
 			<&tlmm 23 0>,
 			<&tlmm 26 0>;
@@ -120,6 +197,7 @@
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
 					  "CAM_RESET2",
 					  "CAM_STANDBY2";
+#endif
 		clocks = <&clock_mmss clk_mclk2_clk_src>,
 			<&clock_mmss clk_camss_mclk2_clk>;
 		clock-names = "cam_src_clk", "cam_clk";
@@ -137,6 +215,18 @@
 		qcom,actuator-src = <&actuator0>;
 		qcom,ois-src = <&ois0>;
 		qcom,eeprom-src = <&eeprom0>;
+#ifdef BOARD_AILSA_II
+		cam_vdig-supply = <&pm8994_s3>;
+		cam_vio-supply = <&pm8994_lvs1>;
+		cam_vana-supply = <&pm8994_l17>;
+		cam_vaf-supply = <&pm8994_l23>;
+		qcom,vdd-cx-supply = <&pm8994_s1_corner>;
+		qcom,vdd-cx-name = "qcom,vdd-cx";
+		qcom,cam-vreg-name = "cam_vdig", "cam_vio", "cam_vana","cam_vaf";
+		qcom,cam-vreg-min-voltage = <1300000 0 2900000 2800000>;
+		qcom,cam-vreg-max-voltage = <1300000 0 2900000 2800000>;
+		qcom,cam-vreg-op-mode = <105000 0 80000 100000>;
+#else
 		cam_vdig-supply = <&pm8994_s3>;
 		cam_vio-supply = <&pm8994_lvs1>;
 		cam_vana-supply = <&pm8994_l17>;
@@ -146,10 +236,27 @@
 		qcom,cam-vreg-min-voltage = <1300000 0 2500000>;
 		qcom,cam-vreg-max-voltage = <1300000 0 2500000>;
 		qcom,cam-vreg-op-mode = <105000 0 80000>;
+#endif
 		qcom,gpio-no-mux = <0>;
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk0_active &cam_sensor_rear_active>;
 		pinctrl-1 = <&cam_sensor_mclk0_suspend &cam_sensor_rear_suspend>;
+#ifdef BOARD_AILSA_II
+		gpios = <&tlmm 13 0>,
+			<&tlmm 30 0>,
+			<&tlmm 29 0>,
+			<&tlmm 38 0>;
+		qcom,gpio-reset = <1>;
+		qcom,gpio-standby = <2>;
+		qcom,gpio-vdig = <3>;
+		qcom,gpio-req-tbl-num = <0 1 2 3>;
+		qcom,gpio-req-tbl-flags = <1 0 0 0>;
+		qcom,gpio-req-tbl-label = "CAMIF_MCLK0",
+					  "CAM_RESET0",
+					  "CAM_STANDBY0",
+					  "CAM_DVDD0";
+		qcom,platform-ois-en-gpio = <&pmi8994_gpios 7 0>; /* OIS_EN */
+#else
 		gpios = <&tlmm 13 0>,
 			<&tlmm 30 0>,
 			<&tlmm 29 0>;
@@ -160,6 +267,7 @@
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK0",
 					  "CAM_RESET0",
 					  "CAM_STANDBY0";
+#endif
 		qcom,sensor-position = <0>;
 		qcom,sensor-mode = <0>;
 		qcom,cci-master = <0>;
@@ -170,6 +278,7 @@
 		qcom,clock-rates = <24000000 0>;
 	};
 
+#ifndef BOARD_AILSA_II
 	qcom,camera@1 {
 		cell-index = <1>;
 		compatible = "qcom,camera";
@@ -212,6 +321,7 @@
 		clock-names = "cam_src_clk", "cam_clk";
 		qcom,clock-rates = <24000000 0>;
 	};
+#endif
 
 	qcom,camera@2 {
 		cell-index = <2>;
@@ -221,7 +331,9 @@
 		qcom,csid-sd-index = <2>;
 		qcom,mount-angle = <90>;
 		qcom,eeprom-src = <&eeprom1>;
+#ifndef BOARD_AILSA_II
 		qcom,actuator-src = <&actuator1>;
+#endif
 		cam_vdig-supply = <&pm8994_l27>;
 		cam_vio-supply = <&pm8994_lvs1>;
 		cam_vana-supply = <&pm8994_l29>;
@@ -235,6 +347,24 @@
 		pinctrl-names = "cam_default", "cam_suspend";
 		pinctrl-0 = <&cam_sensor_mclk2_active &cam_sensor_front_active>;
 		pinctrl-1 = <&cam_sensor_mclk2_suspend &cam_sensor_front_suspend>;
+#ifdef BOARD_AILSA_II
+		gpios = <&tlmm 15 0>,
+			<&tlmm 23 0>,
+			<&tlmm 26 0>,
+			<&tlmm 24 0>,
+			<&tlmm 25 0>;
+		qcom,gpio-reset = <1>;
+		qcom,gpio-standby = <2>;
+		qcom,gpio-vdig = <3>;
+		qcom,gpio-vio = <4>;
+		qcom,gpio-req-tbl-num = <0 1 2 3 4>;
+		qcom,gpio-req-tbl-flags = <1 0 0 0 0>;
+		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
+					  "CAM_RESET2",
+					  "CAM_STANDBY2",
+					  "CAM_DVDD2",
+					  "CAM_IOVDD2";
+#else
 		gpios = <&tlmm 15 0>,
 			<&tlmm 23 0>,
 			<&tlmm 26 0>;
@@ -245,6 +375,7 @@
 		qcom,gpio-req-tbl-label = "CAMIF_MCLK2",
 					  "CAM_RESET2",
 					  "CAM_STANDBY2";
+#endif
 		qcom,sensor-position = <1>;
 		qcom,sensor-mode = <0>;
 		qcom,cci-master = <1>;

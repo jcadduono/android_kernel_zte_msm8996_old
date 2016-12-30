@@ -341,6 +341,17 @@ config ARCH_MSM8994_V1_TLBI_WA
 
 endmenu
 
+menu "ZTE Board Selection"
+
+config BOARD_AILSA_II
+	depends on ARCH_MSM8996
+	bool "ZTE AILSA_II"
+	help
+	  Support for ZTE MSM8996 AILSA_II device.
+	  This is the ZTE Axon 7.
+
+endmenu
+
 menu "Bus support"
 
 config ARM_AMBA

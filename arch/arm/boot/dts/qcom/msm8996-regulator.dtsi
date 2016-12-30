@@ -259,9 +259,15 @@
 	rpm-regulator-ldoa17 {
 		status = "okay";
 		pm8994_l17: regulator-l17 {
+#ifdef BOARD_AILSA_II
+			regulator-min-microvolt = <2900000>;
+			regulator-max-microvolt = <2900000>;
+			qcom,init-voltage = <2900000>;
+#else
 			regulator-min-microvolt = <2500000>;
 			regulator-max-microvolt = <2500000>;
 			qcom,init-voltage = <2500000>;
+#endif
 			status = "okay";
 		};
 	};
@@ -1923,6 +1929,7 @@
 		gpio = <&pm8994_gpios 8 0>;
 	};
 
+#ifndef BOARD_AILSA_II
 	hl7509_en_vreg: hl7509_en_vreg {
 		compatible = "regulator-fixed";
 		regulator-name = "hl7509_en_vreg";
@@ -1930,6 +1937,7 @@
 		enable-active-high;
 		status = "disabled";
 	};
+#endif
 };
 
 &pmi8994_charger {
@@ -1943,6 +1951,7 @@
 	};
 };
 
+#ifndef BOARD_AILSA_II
 /* Halo HL7509 external buck that powers VDD_GFX supply on 8996AU boards */
 &i2c_7 {
 	hl7509_vreg: hl7509-regulator@68 {
@@ -1957,3 +1966,4 @@
 		status = "disabled";
 	};
 };
+#endif
