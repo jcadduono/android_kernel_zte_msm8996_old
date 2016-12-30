@@ -12,7 +12,9 @@
  */
 / {
 	aliases {
+#ifndef BOARD_AILSA_II
 		spi9 = &spi_9;
+#endif
 		spi10 = &spi_10;
 		spi12 = &spi_12;
 	};
@@ -94,6 +96,7 @@
 		status = "disabled";
 	};
 
+#ifndef BOARD_AILSA_II
 	spi_9: spi@75B7000 { /* BLSP2 QUP3 */
 		compatible = "qcom,spi-qup-v2";
 		#address-cells = <1>;
@@ -119,6 +122,7 @@
 			 <&clock_gcc clk_gcc_blsp2_qup3_spi_apps_clk>;
 		status = "disabled";
 	};
+#endif
 
 	spi_10: spi@75B8000 { /* BLSP2 QUP4 */
 		compatible = "qcom,spi-qup-v2";

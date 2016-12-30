@@ -1,0 +1,251 @@
+/* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+
+/dts-v1/;
+
+#define BOARD_AILSA_II
+
+#include "msm8996-v3.dtsi"
+#include "dsi-panel-zte-samsung-s6e3ha3-5p5-wqhd-dualmipi-cmd.dtsi"
+#include "zte-usb-type-c.dtsi"
+#include "msm-pmi8996.dtsi"
+#include "msm8996-mtp.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. MSM 8996 v3 + PMI8996 MTP";
+	compatible = "qcom,msm8996-mtp", "qcom,msm8996", "qcom,mtp";
+	qcom,board-id = <100 0>;
+};
+
+&soc {
+	zte_misc {
+		compatible = "zte-misc";
+		zte,fingerprint_gpio_pwr = <&tlmm 85 0x0>;
+		zte,fingerprint_gpio_id = <&tlmm 21 0x0>;
+		pinctrl-names = "ztemisc_fpid_active";
+		pinctrl-0 = <&ztemisc_fpid_active>;
+	};
+
+	zte-hall {
+		compatible = "zte-hall";
+		hall_en {
+			label = "hall_en";
+			gpios = <&tlmm 124 0x0>;
+		};
+	};
+
+	gen-vkeys {
+		compatible = "zte,gen-vkeys";
+		label = "synaptics_dsx";
+		zte,disp-maxy_px = <2560>;
+		zte,disp-maxy_mm = <1210>; /* 0.1mm */
+		zte,disp-maxx_mm = <680>; /* 0.1mm */
+		zte,x1 = <205>;
+		zte,x2 = <345>;
+		zte,x3 = <485>;
+		zte,dx = <100>; /* (5mm +/- 1mm)*2 */
+		zte,lcd_offset = <25>; /* 2.5mm */
+		zte,y_max_offset = <150>;
+		zte,key-codes = <158 102 187>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		input-name = "gpio-keys";
+
+		vol_up {
+			label = "volume_up";
+			gpios = <&pm8994_gpios 2 0x1>;
+			linux,input-type = <1>;
+			linux,code = <114>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+
+		vol_down {
+			label = "volume_down";
+			gpios = <&pm8994_gpios 3 0x1>;
+			linux,input-type = <1>;
+			linux,code = <115>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+	};
+
+	vfs74xx@0 {
+		compatible = "validity,metallica";
+		spi-max-frequency = <19200000>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <123 0x2>;
+		qcom,qup_id=<5>;
+		validity,drdy-gpio = <&tlmm 123 0>;
+		validity,sleep-gpio = <&tlmm 39 0>;
+		validity,cs-gpio = <&tlmm 83 0>;
+		validity,id-gpio = <&tlmm 21 0>;
+		validity,vfsspi-vdd18_en = <&tlmm 85 0>;
+		validity,vfsspi-vdd33_en = <&tlmm 85 0>;
+	};
+
+	goodix_gf3118@1 {
+		compatible = "goodix,fingerprint";
+		spi-max-frequency = <4800000>;
+		interrupt-parent = <&tlmm>;
+		interrupts = <123 0x0>;
+		goodix,gpio_pwr = <&tlmm 85 0>;
+		goodix,gpio_reset = <&tlmm 39 0>;
+		goodix,gpio_id = <&tlmm 21 0>;
+		goodix,gpio_irq = <&tlmm 123 0>;
+	};
+
+	i2c@75ba000 {
+		synaptics@20 {
+			compatible = "synaptics,dsx-i2c";
+			reg = <0x20>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <125 0x2008>;
+			vdd_ana-supply = <&pm8994_l14>;
+			vcc_i2c-supply= <&pm8994_l22>;
+			synaptics,pwr-reg-name = "vdd_ana";
+			synaptics,bus-reg-name = "vcc_i2c";
+			pinctrl-names = "pmx_ts_active", "pmx_ts_suspend";
+			pinctrl-0 = <&ts_active>;
+			pinctrl-1 = <&ts_suspend>;
+			synaptics,reset-gpio = <&tlmm 89 0x00>;
+			synaptics,irq-gpio = <&tlmm 125 0x2008>;
+			synaptics,irq-on-state = <0>;
+			synaptics,irq-flags = <0x2008>; /* IRQF_ONESHOT | IRQF_TRIGGER_LOW */
+			synaptics,power-delay-ms = <100>;
+			synaptics,reset-delay-ms = <100>;
+			synaptics,reset-on-state = <0>;
+			synaptics,reset-active-ms = <20>;
+			synaptics,cap-button-codes = <158 102 187>;
+		};
+
+		ndt_stress@50 {
+			compatible = "ndt,stress-i2c";
+			reg = <0x50>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <122 0x2008>;
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&ndt_power_active &ndt_int_active &ndt_reset_active>;
+			pinctrl-1 = <&ndt_power_suspend &ndt_int_suspend &ndt_reset_suspend>;
+			ndt,irq-gpio = <&tlmm 122 0x00>;
+			ndt,irq-on-state = <0>;
+			ndt,irq-flags = <0x2008>;
+			ndt,power-gpio = <&tlmm 69 0x00>;
+			ndt,power-on-state = <1>;
+			ndt,power-delay-ms = <20>;
+			ndt,reset-gpio = <&tlmm 121 0x00>;
+			ndt,reset-on-state = <0>;
+			ndt,reset-active-ms = <10>;
+			ndt,reset-delay-ms = <10>;
+		};
+	};
+};
+
+&pm8994_gpios {
+	gpio@c000 { /* GPIO 1 - ak8157,rstn-gpio */
+		qcom,mode = <1>;
+		qcom,pull = <5>;
+		qcom,vin-sel = <2>;
+		qcom,src-sel = <0>;
+		qcom,master-en = <1>;
+		status = "okay";
+	};
+
+	gpio@c200 { /* GPIO 3 */
+		qcom,mode = <0>;
+		qcom,pull = <0>;
+		qcom,vin-sel = <2>;
+		qcom,src-sel = <0>;
+		status = "okay";
+	};
+
+	gpio@cb00 { /* GPIO 12 */
+		qcom,mode = <0>;
+		qcom,pull = <0>;
+		qcom,vin-sel = <2>;
+		qcom,src-sel = <0>;
+		status = "okay";
+	};
+
+	gpio@cc00 { /* GPIO 13 - RCV_SPK_SWITCH */
+		qcom,mode = <1>;
+		qcom,pull = <5>;
+		qcom,vin-sel = <2>;
+		qcom,src-sel = <0>;
+		qcom,master-en = <1>;
+		status = "okay";
+	};
+};
+
+&pmi8994_gpios {
+	gpio@c000 { /* GPIO 1  AKM4490 */
+		qcom,mode = <1>;	/* DIGITAL OUT */
+		qcom,pull = <5>;	/* No Pull */
+		qcom,vin-sel = <2>;	/* 1.8 */
+		qcom,src-sel = <0>;	/* CONSTANT */
+		qcom,master-en = <1>;	/* ENABLE GPIO */
+		status = "okay";
+	};
+
+	gpio@c600 { /* GPIO 7 - ois_en  */
+		qcom,mode = <1>;
+		qcom,vin-sel = <2>;
+		qcom,src-sel = <0>;
+		qcom,invert = <0>; /* need invert = 0 */
+		qcom,master-en = <1>;
+		status = "okay";
+	};
+};
+
+&pmi8994_fg {
+	qcom,vbat-estimate-diff-mv = <150>;
+};
+
+/{
+	mtp_batterydata: qcom,battery-data {
+		qcom,batt-id-range-pct = <15>;
+		#include "zte_p996a01_3250mah.dtsi"
+	};
+};
+
+&slim_msm {
+	tomtom_codec {
+		qcom,cdc-micbias2-headset-only;
+		qcom,cdc-micbias1-ext-cap;
+		qcom,cdc-micbias2-ext-cap;
+		qcom,cdc-micbias3-ext-cap;
+		qcom,cdc-micbias4-ext-cap;
+	};
+
+	tasha_codec {
+		swr_master {
+			compatible = "qcom,swr-wcd";
+			#address-cells = <2>;
+			#size-cells = <0>;
+
+			wsa881x_1: wsa881x@20170212 {
+				compatible = "qcom,wsa881x";
+				reg = <0x00 0x20170212>;
+				qcom,spkr-sd-n-gpio = <&pmi8994_gpios 7 0>;
+			};
+
+			wsa881x_2: wsa881x@20170211 {
+				compatible = "qcom,wsa881x";
+				reg = <0x00 0x20170211>;
+				qcom,spkr-sd-n-gpio = <&pmi8994_gpios 7 0>;
+			};
+		};
+	};
+};
