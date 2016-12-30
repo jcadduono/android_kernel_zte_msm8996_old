@@ -28,6 +28,7 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
+#include <linux/wakelock.h>
 
 struct nqx_platform_data {
 	unsigned int irq_gpio;
@@ -78,6 +79,8 @@ struct nqx_dev {
 	struct nqx_platform_data *pdata;
 };
 
+struct wake_lock nfc_wake_lock;
+
 static int nfcc_reboot(struct notifier_block *notifier, unsigned long val,
 			void *v);
 /*clock enable function*/
@@ -122,6 +125,8 @@ static irqreturn_t nqx_dev_irq_handler(int irq, void *dev_id)
 	nqx_dev->count_irq++;
 	spin_unlock_irqrestore(&nqx_dev->irq_enabled_lock, flags);
 	wake_up(&nqx_dev->read_wq);
+
+	wake_lock_timeout(&nfc_wake_lock, HZ / 2);
 
 	return IRQ_HANDLED;
 }
@@ -202,6 +207,9 @@ static ssize_t nfc_read(struct file *filp, char __user *buf,
 		dev_dbg(&nqx_dev->client->dev, "%s : NfcNciRx %x %x %x\n",
 			__func__, tmp[0], tmp[1], tmp[2]);
 #endif
+
+	wake_lock_timeout(&nfc_wake_lock, HZ / 2);
+
 	if (copy_to_user(buf, tmp, ret)) {
 		dev_warn(&nqx_dev->client->dev,
 			"%s : failed to copy to user space\n", __func__);
@@ -629,10 +637,14 @@ static int nfc_parse_dt(struct device *dev, struct nqx_platform_data *pdata)
 		pdata->ese_gpio = -EINVAL;
 	}
 
-	r = of_property_read_string(np, "qcom,clk-src", &pdata->clk_src_name);
-
 	pdata->clkreq_gpio = of_get_named_gpio(np, "qcom,nq-clkreq", 0);
+	if (!gpio_is_valid(pdata->clkreq_gpio)) {
+		dev_warn(dev,
+			"clkreq GPIO <OPTIONAL> error getting from OF node\n");
+		pdata->clkreq_gpio = -EINVAL;
+	}
 
+	r = of_property_read_string(np, "qcom,clk-src", &pdata->clk_src_name);
 	if (r)
 		return -EINVAL;
 	return r;
@@ -821,16 +833,17 @@ static int nqx_probe(struct i2c_client *client,
 			__func__, platform_data->clkreq_gpio);
 			goto err_clkreq_gpio;
 		}
+		nqx_dev->clkreq_gpio = platform_data->clkreq_gpio;
 	} else {
+		nqx_dev->clkreq_gpio = -EINVAL;
 		dev_err(&client->dev,
 			"%s: clkreq gpio not provided\n", __func__);
-		goto err_ese_gpio;
+		/* clkreq gpio optional for pn548 so we should continue */
 	}
 
 	nqx_dev->en_gpio = platform_data->en_gpio;
 	nqx_dev->irq_gpio = platform_data->irq_gpio;
 	nqx_dev->firm_gpio  = platform_data->firm_gpio;
-	nqx_dev->clkreq_gpio = platform_data->clkreq_gpio;
 	nqx_dev->pdata = platform_data;
 
 	/* init mutex and queues */
@@ -839,7 +852,7 @@ static int nqx_probe(struct i2c_client *client,
 	spin_lock_init(&nqx_dev->irq_enabled_lock);
 
 	nqx_dev->nqx_device.minor = MISC_DYNAMIC_MINOR;
-	nqx_dev->nqx_device.name = "nq-nci";
+	nqx_dev->nqx_device.name = "pn548";
 	nqx_dev->nqx_device.fops = &nfc_dev_fops;
 
 	r = misc_register(&nqx_dev->nqx_device);
@@ -857,6 +870,8 @@ static int nqx_probe(struct i2c_client *client,
 		goto err_request_irq_failed;
 	}
 	nqx_disable_irq(nqx_dev);
+
+	wake_lock_init(&nfc_wake_lock, WAKE_LOCK_SUSPEND, "nfc_sleep");
 
 	/*
 	 * To be efficient we need to test whether nfcc hardware is physically
@@ -913,7 +928,9 @@ err_request_irq_failed:
 err_misc_register:
 	mutex_destroy(&nqx_dev->read_mutex);
 err_clkreq_gpio:
-	gpio_free(platform_data->clkreq_gpio);
+	/* optional gpio for pn548 */
+	if (nqx_dev->clkreq_gpio > 0)
+		gpio_free(platform_data->clkreq_gpio);
 err_ese_gpio:
 	/* optional gpio, not sure was configured in probe */
 	if (nqx_dev->ese_gpio > 0)
@@ -943,6 +960,8 @@ static int nqx_remove(struct i2c_client *client)
 	int ret = 0;
 	struct nqx_dev *nqx_dev;
 
+	wake_lock_destroy(&nfc_wake_lock);
+
 	nqx_dev = i2c_get_clientdata(client);
 	if (!nqx_dev) {
 		dev_err(&client->dev,
@@ -955,7 +974,9 @@ static int nqx_remove(struct i2c_client *client)
 	free_irq(client->irq, nqx_dev);
 	misc_deregister(&nqx_dev->nqx_device);
 	mutex_destroy(&nqx_dev->read_mutex);
-	gpio_free(nqx_dev->clkreq_gpio);
+	/* optional gpio for pn548 */
+	if (nqx_dev->clkreq_gpio > 0)
+		gpio_free(nqx_dev->clkreq_gpio);
 	/* optional gpio, not sure was configured in probe */
 	if (nqx_dev->ese_gpio > 0)
 		gpio_free(nqx_dev->ese_gpio);
