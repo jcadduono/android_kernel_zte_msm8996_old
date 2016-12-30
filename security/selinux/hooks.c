@@ -3728,6 +3728,9 @@ static int selinux_kernel_module_request(char *kmod_name)
 
 static int selinux_kernel_module_from_file(struct file *file)
 {
+#ifdef CONFIG_ZTE_ANDROID_M_COMPAT
+	return 0;
+#else
 	struct common_audit_data ad;
 	struct inode_security_struct *isec;
 	struct file_security_struct *fsec;
@@ -3756,6 +3759,7 @@ static int selinux_kernel_module_from_file(struct file *file)
 
 	return avc_has_perm(sid, isec->sid, SECCLASS_SYSTEM,
 				SYSTEM__MODULE_LOAD, &ad);
+#endif
 }
 
 static int selinux_task_setpgid(struct task_struct *p, pid_t pgid)

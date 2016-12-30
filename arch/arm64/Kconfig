@@ -359,6 +359,13 @@ config ZTE_BOOT_MODE
 	  added by ZTE such as the ability to reboot with emmc write
 	  protection disabled or access FTM mode.
 
+config ZTE_ANDROID_M_COMPAT
+	bool "ZTE Android M compatibility"
+	help
+	  If you say Y here, this will revert API changes to match up with
+	  the APIs used in Android 6.0 Marshmallow, allowing you to use
+	  the kernel with the OEM Android 6.0 operating system.
+
 menu "Bus support"
 
 config ARM_AMBA
