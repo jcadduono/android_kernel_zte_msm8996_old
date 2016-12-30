@@ -310,6 +310,20 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
 			__raw_writel(0x77665503, restart_reason);
+#ifdef CONFIG_ZTE_BOOT_MODE
+		} else if (!strcmp(cmd, "ftmmode")) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_FTMMODE);
+			__raw_writel(0x776655ee, restart_reason);
+		} else if (!strcmp(cmd, "disemmcwp")) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_DISEMMCWP);
+			__raw_writel(0x776655aa, restart_reason);
+		} else if (!strcmp(cmd, "emmcwpenab")) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_EMMCWPENAB);
+			__raw_writel(0x776655bb, restart_reason);
+#endif
 		} else if (!strcmp(cmd, "dm-verity device corrupted")) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_DMVERITY_CORRUPTED);

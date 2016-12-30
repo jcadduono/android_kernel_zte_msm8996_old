@@ -352,6 +352,13 @@ config BOARD_AILSA_II
 
 endmenu
 
+config ZTE_BOOT_MODE
+	bool "ZTE BOOT MODE"
+	help
+	  If you say Y here, this will enable special boot features
+	  added by ZTE such as the ability to reboot with emmc write
+	  protection disabled or access FTM mode.
+
 menu "Bus support"
 
 config ARM_AMBA
