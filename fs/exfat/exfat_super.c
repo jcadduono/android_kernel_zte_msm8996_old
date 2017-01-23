@@ -955,7 +955,7 @@ static struct dentry *exfat_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	i_mode = inode->i_mode;
-	if (S_ISLNK(i_mode)) {
+	if (S_ISLNK(i_mode) && !EXFAT_I(inode)->target) {
 		EXFAT_I(inode)->target = MALLOC(i_size_read(inode)+1);
 		if (!EXFAT_I(inode)->target) {
 			err = -ENOMEM;
@@ -1688,7 +1688,7 @@ const struct inode_operations exfat_file_inode_operations = {
 #endif
 };
 
-static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
+static int exfat_bmap(struct inode *inode, SECTOR sector, SECTOR *phys,
 		      unsigned long *mapped_blocks, int *create)
 {
 	struct super_block *sb = inode->i_sb;
@@ -1697,7 +1697,7 @@ static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 	BD_INFO_T *p_bd = &(sbi->bd_info);
 	const unsigned long blocksize = sb->s_blocksize;
 	const unsigned char blocksize_bits = sb->s_blocksize_bits;
-	sector_t last_block;
+	SECTOR last_block;
 	int err, clu_offset, sec_offset;
 	unsigned int cluster;
 
@@ -1741,14 +1741,14 @@ static int exfat_bmap(struct inode *inode, sector_t sector, sector_t *phys,
 	return 0;
 }
 
-static int exfat_get_block(struct inode *inode, sector_t iblock,
+static int exfat_get_block(struct inode *inode, SECTOR iblock,
 			   struct buffer_head *bh_result, int create)
 {
 	struct super_block *sb = inode->i_sb;
 	unsigned long max_blocks = bh_result->b_size >> inode->i_blkbits;
 	int err;
 	unsigned long mapped_blocks;
-	sector_t phys;
+	SECTOR phys;
 
 	__lock_super(sb);
 
@@ -1957,9 +1957,9 @@ static ssize_t exfat_direct_IO(int rw, struct kiocb *iocb,
 }
 #endif
 
-static sector_t _exfat_bmap(struct address_space *mapping, sector_t block)
+static SECTOR _exfat_bmap(struct address_space *mapping, SECTOR block)
 {
-	sector_t blocknr;
+	SECTOR blocknr;
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3,4,0)
 	down_read(&EXFAT_I(mapping->host)->truncate_lock);
@@ -2631,6 +2631,47 @@ static void setup_dops(struct super_block *sb)
 		sb->s_d_op = &exfat_dentry_ops;
 }
 
+static struct inode *exfat_nfs_get_inode(struct super_block *sb,
+					 UINT64 ino, UINT32 generation)
+{
+	struct inode *inode;
+
+	if (ino < EXFAT_ROOT_INO)
+		return ERR_PTR(-ESTALE);
+
+	inode = ilookup(sb, ino);
+	if (!inode)
+		return ERR_PTR(-ESTALE);
+	if (IS_ERR(inode))
+		return inode;
+	if (generation && inode->i_generation != generation) {
+		iput(inode);
+		return ERR_PTR(-ESTALE);
+	}
+
+	return inode;
+}
+
+static struct dentry *exfat_fh_to_dentry(struct super_block *sb,
+					 struct fid *fid,
+					 int fh_len, int fh_type)
+{
+	return generic_fh_to_dentry(sb, fid, fh_len, fh_type,
+				    exfat_nfs_get_inode);
+}
+
+static struct dentry *exfat_fh_to_parent(struct super_block *sb,
+					 struct fid *fid,
+					 int fh_len, int fh_type)
+{
+	return generic_fh_to_parent(sb, fid, fh_len, fh_type,
+				    exfat_nfs_get_inode);
+}
+
+const struct export_operations exfat_export_ops = {
+	.fh_to_dentry   = exfat_fh_to_dentry,
+	.fh_to_parent   = exfat_fh_to_parent,
+};
 
 static int exfat_fill_super(struct super_block *sb, void *data, int silent)
 {
@@ -2659,6 +2700,7 @@ static int exfat_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_flags |= MS_NODIRATIME;
 	sb->s_magic = EXFAT_SUPER_MAGIC;
 	sb->s_op = &exfat_sops;
+	sb->s_export_op = &exfat_export_ops;
 
 	error = parse_options(data, silent, &debug, &sbi->options);
 	if (error)
@@ -2778,6 +2820,13 @@ static int __init exfat_init_inodecache(void)
 
 static void __exit exfat_destroy_inodecache(void)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(3,6,0)
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
+#endif
 	kmem_cache_destroy(exfat_inode_cachep);
 }
 
